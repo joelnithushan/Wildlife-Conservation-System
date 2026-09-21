@@ -1,0 +1,62 @@
+name: wildlife_conservation_system
+description: Smart Wildlife Conservation and Anti-Poaching Monitoring System
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management
+  flutter_riverpod: ^3.4.3
+  riverpod_annotation: ^4.0.7
+
+  # Routing
+  go_router: ^14.6.2
+
+  # Offline database
+  drift: ^2.20.3
+  sqlite3_flutter_libs: ^0.5.0
+  path_provider: ^2.1.4
+  path: ^1.9.0
+
+  # Location & Maps
+  geolocator: ^13.0.2
+  google_maps_flutter: ^2.9.0
+
+  # Media
+  image_picker: ^1.1.2
+
+  # Connectivity
+  connectivity_plus: ^6.1.0
+
+  # Analytics / Export
+  fl_chart: ^0.69.0
+  pdf: ^3.11.1
+  csv: ^6.0.0
+
+  # Firebase
+  firebase_core: ^3.8.0
+  firebase_auth: ^5.3.3
+  cloud_firestore: ^5.5.0
+  firebase_storage: ^12.3.6
+
+  # Utilities
+  equatable: ^2.0.7
+  uuid: ^4.5.1
+  intl: ^0.19.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.13
+  riverpod_generator: ^4.0.9
+  drift_dev: ^2.20.3
+  mocktail: ^1.0.4
+
+flutter:
+  uses-material-design: true
