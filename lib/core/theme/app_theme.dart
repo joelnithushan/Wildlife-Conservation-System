@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 
+/// Frozen conservation palette.
 abstract final class AppColors {
-  static const primary = Color(0xFF2E7D32);       // Forest green
-  static const primaryLight = Color(0xFF60AD5E);
-  static const primaryDark = Color(0xFF005005);
+  static const primary = Color(0xFF1F5A43);        // Deep conservation green
+  static const primaryLight = Color(0xFF3E7C63);
+  static const primaryDark = Color(0xFF123A2B);
   static const secondary = Color(0xFF795548);      // Earth brown
   static const secondaryLight = Color(0xFFA98274);
   static const secondaryDark = Color(0xFF4B2C20);
-  static const warning = Color(0xFFF57F17);        // Alert amber
-  static const error = Color(0xFFB71C1C);
-  static const success = Color(0xFF1B5E20);
-  static const surface = Color(0xFFF9FBE7);        // Pale leaf
-  static const background = Color(0xFFF1F8E9);
+  static const warning = Color(0xFFE8A317);        // Amber: offline/pending/warning
+  static const error = Color(0xFFC62828);          // Red: danger only
+  static const success = Color(0xFF2E7D32);        // Green: success
+  static const surface = Color(0xFFFFFFFF);        // Cards: white
+  static const background = Color(0xFFF7F5F0);      // Warm/light neutral
   static const onPrimary = Color(0xFFFFFFFF);
   static const onSecondary = Color(0xFFFFFFFF);
   static const textPrimary = Color(0xFF1B1B1B);
