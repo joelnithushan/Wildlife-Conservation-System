@@ -1,0 +1,110 @@
+/// Shared enumerations for the whole application.
+///
+/// All persisted status values live here so raw strings are never scattered
+/// through the codebase. Serialization uses the stable Dart [Enum.name]
+/// (camelCase) as the wire value. Use [parseEnum] / [parseEnumOrNull] to read
+/// values back safely.
+library;
+
+// ---------------------------------------------------------------------------
+// Enum definitions
+// ---------------------------------------------------------------------------
+
+enum PatrolStatus { assigned, inProgress, completed }
+
+/// Record-level offline synchronization state (persisted on every syncable row).
+enum SyncState { pending, synchronized, failed }
+
+enum CaptureMode { gps, manual }
+
+/// Where an incident's location came from.
+enum LocationSource { gps, manual }
+
+enum SubmissionStatus { draft, submitted }
+
+enum ReviewStatus { pendingReview, underReview, verified, rejected }
+
+enum AlertStatus { newAlert, assigned, acknowledged, responseInProgress, resolved }
+
+/// Notification delivery state for a response assignment.
+enum DeliveryState { pending, delivered, failed }
+
+enum UserRole { ranger, parkManager, communityLiaisonOfficer, conservationResearcher }
+
+enum ResponderRole { ranger, communityLiaisonOfficer }
+
+enum AlertSource { collar, communityReport }
+
+enum IncidentCategory {
+  poaching,
+  animalInjury,
+  humanWildlifeConflict,
+  illegalLogging,
+  other,
+}
+
+enum AlertSeverity { low, medium, high, critical }
+
+enum RiskLevel { low, medium, high }
+
+// ---------------------------------------------------------------------------
+// Serialization helpers
+// ---------------------------------------------------------------------------
+
+/// Stable wire value for any enum (its Dart [Enum.name]).
+extension EnumWire on Enum {
+  String get wire => name;
+}
+
+/// Parse [raw] into one of [values], falling back to [fallback] when the value
+/// is null or unrecognized. Safe for reading persisted/remote data.
+T parseEnum<T extends Enum>(
+  Iterable<T> values,
+  Object? raw, {
+  required T fallback,
+}) {
+  if (raw is! String) return fallback;
+  for (final value in values) {
+    if (value.name == raw) return value;
+  }
+  return fallback;
+}
+
+/// Like [parseEnum] but returns null for null/unknown input instead of a
+/// fallback. Use for optional fields.
+T? parseEnumOrNull<T extends Enum>(Iterable<T> values, Object? raw) {
+  if (raw is! String) return null;
+  for (final value in values) {
+    if (value.name == raw) return value;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Domain rules that belong to the enums themselves
+// ---------------------------------------------------------------------------
+
+extension PatrolStatusTransitions on PatrolStatus {
+  /// Allowed lifecycle: assigned -> inProgress -> completed. No skips, no reversals.
+  bool canTransitionTo(PatrolStatus next) {
+    return switch (this) {
+      PatrolStatus.assigned => next == PatrolStatus.inProgress,
+      PatrolStatus.inProgress => next == PatrolStatus.completed,
+      PatrolStatus.completed => false,
+    };
+  }
+}
+
+extension AlertStatusTransitions on AlertStatus {
+  /// Allowed lifecycle:
+  /// newAlert -> assigned -> acknowledged -> responseInProgress -> resolved.
+  bool canTransitionTo(AlertStatus next) {
+    return switch (this) {
+      AlertStatus.newAlert => next == AlertStatus.assigned,
+      AlertStatus.assigned => next == AlertStatus.acknowledged,
+      AlertStatus.acknowledged => next == AlertStatus.responseInProgress,
+      AlertStatus.responseInProgress => next == AlertStatus.resolved,
+      AlertStatus.resolved => false,
+    };
+  }
+}
