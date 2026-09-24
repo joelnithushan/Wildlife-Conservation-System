@@ -314,6 +314,25 @@ flutter test test/patrol      # UC01 unit + widget tests
 flutter test                  # whole suite
 ```
 
+## UC04 – Analyze Conservation Data and Generate Reports
+
+Implemented on `feature/uc04-analytics` (UC04-S01, Park Manager and Conservation Researcher).
+
+**Filters.** Open Conservation Reports, choose a permitted park, a start and end date, and one or more incident categories, then Generate Report. Invalid filters show an inline error and do not query data. Categories are the shared UC02 values: Poaching, Animal injury, Human-wildlife conflict, Illegal logging, and Other.
+
+**Synchronized-data rule.** One `generateReport` read builds one snapshot. Only `syncState = synchronized` incidents and completed patrols are aggregated. Pending and failed field records that match the filters are excluded from totals and reported as "N pending field records excluded".
+
+**Aggregation.** Incident totals are counts by the selected categories. Patrol coverage is the average of `coveragePercent` on completed, synchronized patrols in the park and period (incomplete patrols are omitted; if none qualify the report shows N/A). Conflict alerts from UC03 are counted open vs resolved and bucketed weekly (period of 92 days or less) or monthly. No separate analytics collection is written, and source records are not modified.
+
+**Empty results and outages.** Valid filters with no matching synchronized records produce an empty report (zeros, N/A coverage) and "No records for these filters." If the read fails, the app shows "The data service is unavailable – no new report was created.", keeps the filters, and does not present an older report as new.
+
+**Export.** Optional, and only after a report is on screen. PDF and CSV are rendered from that same `ConservationReport` (same snapshot, filters, and cutoff) with no new query. A failed export leaves the report unchanged.
+
+**Run UC04 tests:**
+```bash
+flutter test test/analytics
+```
+
 ### Running on Web
 The Drift connection is platform-conditional (native SQLite on mobile, SQLite
 WASM on web), so the app compiles for web (`flutter build web`). To actually run
