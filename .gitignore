@@ -47,3 +47,7 @@ lcov.info
 
 # Logs
 *.log
+
+# Flutter generated plugin lists (machine-specific)
+.flutter-plugins
+.flutter-plugins-dependencies
