@@ -1,5 +1,6 @@
 import '../../core/enums/app_enums.dart';
 import '../models/app_user.dart';
+import '../models/geo_coordinate.dart';
 import '../models/park.dart';
 import '../models/patrol_route.dart';
 import '../models/risk_zone.dart';
@@ -58,6 +59,8 @@ abstract final class DemoData {
   ];
 
   // --- Patrol routes ---
+  // Planned paths are a handful of waypoints (centred near Minneriya) so patrol
+  // coverage can be demonstrated. Real routes would carry a denser path.
   static const routes = <PatrolRoute>[
     PatrolRoute(
       id: 'RT-07',
@@ -65,6 +68,13 @@ abstract final class DemoData {
       name: 'North Ridge',
       description: 'Northern ridge line patrol.',
       distanceKm: 7.4,
+      plannedPath: [
+        GeoCoordinate(latitude: 8.030, longitude: 80.890),
+        GeoCoordinate(latitude: 8.040, longitude: 80.895),
+        GeoCoordinate(latitude: 8.050, longitude: 80.900),
+        GeoCoordinate(latitude: 8.060, longitude: 80.905),
+        GeoCoordinate(latitude: 8.070, longitude: 80.910),
+      ],
     ),
     PatrolRoute(
       id: 'RT-05',
@@ -72,6 +82,12 @@ abstract final class DemoData {
       name: 'River Loop',
       description: 'Loop following the river bank.',
       distanceKm: 5.1,
+      plannedPath: [
+        GeoCoordinate(latitude: 8.010, longitude: 80.870),
+        GeoCoordinate(latitude: 8.015, longitude: 80.880),
+        GeoCoordinate(latitude: 8.020, longitude: 80.885),
+        GeoCoordinate(latitude: 8.015, longitude: 80.892),
+      ],
     ),
     PatrolRoute(
       id: 'RT-02',
@@ -79,6 +95,11 @@ abstract final class DemoData {
       name: 'Gate Circuit',
       description: 'Short circuit around the main gate.',
       distanceKm: 3.8,
+      plannedPath: [
+        GeoCoordinate(latitude: 7.995, longitude: 80.860),
+        GeoCoordinate(latitude: 8.000, longitude: 80.865),
+        GeoCoordinate(latitude: 8.003, longitude: 80.868),
+      ],
     ),
   ];
 

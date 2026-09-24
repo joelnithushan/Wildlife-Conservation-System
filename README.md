@@ -224,3 +224,98 @@ so retrying a pending record never creates a duplicate remote document
 | Thushalini | `feature/uc02-incidents` | UC02 Record & Review Wildlife Incidents |
 | Vaishnavi | `feature/uc03-conflict-response` | UC03 Coordinate Wildlife Conflict Response |
 | Kanistan | `feature/uc04-analytics` | UC04 Analyze Conservation Data & Reports |
+
+---
+
+## Database & Firebase setup
+
+One Firebase project backs the whole app: **Cloud Firestore** (sync target),
+**Drift/SQLite** (offline), **Firebase Storage** (evidence photos, UC02+).
+
+The app is **offline-first and runs without Firebase**: `bootstrapFirebase()` in
+`main.dart` initializes Firebase safely (falls back to local Drift + an in-memory
+sync writer if not configured). Once configured, `firebaseReadyProvider` flips to
+`true` and sync/storage use the real Firestore/Storage implementations — no code
+change needed.
+
+**To make Firebase real (manual, one-time):**
+```bash
+# 1. Install CLIs
+dart pub global activate flutterfire_cli
+npm install -g firebase-tools          # or: curl -sL https://firebase.tools | bash
+
+# 2. Log in and configure (generates lib/firebase_options.dart — git-ignored)
+firebase login
+flutterfire configure
+
+# 3. In main.dart, pass the generated options:
+#    await bootstrapFirebase(optionsOverride: DefaultFirebaseOptions.currentPlatform);
+
+# 4. In the Firebase console: enable Firestore (choose region) and Storage.
+
+# 5. Deploy rules + indexes (config files are in the repo root)
+firebase deploy --only firestore:rules,firestore:indexes,storage
+```
+
+- **Collections** are centralised in `core/constants/firestore_collections.dart`.
+- **Rules**: `firestore.rules` / `storage.rules` ship **development** rules (open
+  with a hard expiry) plus a commented **recommended** auth-based block. Real
+  role security needs Firebase Auth — the client `CurrentUserProvider` is a demo
+  session only, not backend security.
+- **Indexes**: `firestore.indexes.json` predefines likely composite indexes;
+  Firestore also prints an index-creation link the first time a query needs one.
+- **Seeding**: `FirestoreDemoSeeder.seedIfMissing()` (in `core/database/seed/`) is
+  idempotent and **never auto-runs** — call it manually; it skips docs that exist.
+
+---
+
+## UC01 – Manage Patrol Operations
+
+Implemented on `feature/uc01-patrol`. Two scenarios under one use case:
+
+- **UC01-S01 Assign Patrol Route** (Park Manager): pick a route + available ranger
+  + schedule → creates one `Patrol` (status `assigned`, stable ID, `pending` sync).
+- **UC01-S02 Conduct Assigned Patrol** (Ranger): view *My Patrols* → open details →
+  start → GPS tracking → manual waypoint → offline capture → sync → finish →
+  coverage summary.
+
+**Flow / screens:** My Patrols → Patrol Details → Patrol In Progress → Manual
+Waypoint → Completion Summary. A demo role switcher (app bar) toggles between
+Ranger and Park Manager on one device.
+
+**Location / GPS:** the app requests location permission at patrol start. GPS and
+manual waypoints produce the *same* `PatrolPosition` model (only `captureMode`
+differs). A GPS fix is never fabricated — if location is unavailable the UI shows
+a message and manual waypoint stays available. Maps are shown as a lightweight
+`RoutePreview` (CustomPaint) so the app runs without a Google Maps API key.
+
+**Offline behaviour:** every position/patrol change is written to Drift first with
+`syncState = pending`; field work continues fully offline (an amber banner shows
+"Offline – positions saved on this device" with the pending count).
+
+**Synchronization:** when back online, `SyncService.syncAllPendingData()` upserts
+pending records to Firestore **keyed by their stable client ID** — retry-safe and
+idempotent, so retries never create duplicate patrols/positions. Records flip to
+`synchronized` only after a successful write; failures stay `failed` and retry.
+Without Firebase configured, an in-memory writer backs sync for demo (swap in
+`FirestoreRemoteWriter` via `remoteWriterProvider` once Firebase is set up).
+
+**Coverage:** `CalculateCoverage` (in `features/patrol/domain/usecases`) returns
+0–100% = fraction of planned-route waypoints visited within a 150 m tolerance.
+Deterministic and unit-tested.
+
+**Status lifecycle** (enforced in the repository, not just the UI):
+`assigned → inProgress → completed`. Duplicate start, starting a completed patrol,
+and completing a non-in-progress patrol are all rejected.
+
+**Run UC01 tests:**
+```bash
+flutter test test/patrol      # UC01 unit + widget tests
+flutter test                  # whole suite
+```
+
+### Running on Web
+The Drift connection is platform-conditional (native SQLite on mobile, SQLite
+WASM on web), so the app compiles for web (`flutter build web`). To actually run
+the DB on web, serve `sqlite3.wasm` and `drift_worker.js` from `web/` (see the
+[drift web docs](https://drift.simonbinder.eu/web/)).

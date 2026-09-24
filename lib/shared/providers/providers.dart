@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/services/connectivity_service.dart';
+import '../../core/services/storage_service.dart';
 
 /// Shared, feature-agnostic providers.
 ///
@@ -20,3 +21,16 @@ final connectivityServiceProvider = Provider<ConnectivityService>(
 final isOnlineProvider = StreamProvider<bool>(
   (ref) => ref.watch(connectivityServiceProvider).connectionChanges,
 );
+
+/// Whether Firebase initialized successfully at startup. Overridden in `main()`
+/// with the real result of [bootstrapFirebase]. Defaults to `false` so tests and
+/// unconfigured runs use local/in-memory infrastructure.
+final firebaseReadyProvider = Provider<bool>((_) => false);
+
+/// File storage. Uses Firebase Storage when Firebase is ready, otherwise a no-op
+/// implementation so the app still runs without configuration.
+final storageServiceProvider = Provider<StorageService>((ref) {
+  return ref.watch(firebaseReadyProvider)
+      ? FirebaseStorageService()
+      : const UnavailableStorageService();
+});

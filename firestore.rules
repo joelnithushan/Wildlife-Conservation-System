@@ -1,0 +1,52 @@
+rules_version = '2';
+
+// =============================================================================
+// DEVELOPMENT RULES (currently active)
+// =============================================================================
+// Open access, but with a hard expiry so the database can NEVER be left
+// permanently open by accident. Adjust the date as needed during development.
+//
+// LIMITATION: real role-based security (Ranger vs Park Manager vs Liaison vs
+// Researcher) CANNOT be enforced from the client `CurrentUserProvider` — that is
+// a demo/session convenience only. Secure rules require Firebase Authentication
+// (see the recommended block below). Do not treat these dev rules as secure.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /{document=**} {
+      allow read, write: if request.time < timestamp.date(2026, 12, 31);
+    }
+  }
+}
+
+// =============================================================================
+// RECOMMENDED DEMO / FINAL RULES (enable once Firebase Auth is wired up)
+// =============================================================================
+// Replace the block above with the following once each app user signs in with
+// Firebase Auth and their role is stored on their `users/{uid}` document.
+//
+// service cloud.firestore {
+//   match /databases/{database}/documents {
+//     function isSignedIn() { return request.auth != null; }
+//     function userDoc() {
+//       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+//     }
+//     function hasRole(role) { return isSignedIn() && userDoc().role == role; }
+//     function isManager() { return hasRole('parkManager'); }
+//
+//     // Reference data: any signed-in user reads; only managers write.
+//     match /parks/{id}        { allow read: if isSignedIn(); allow write: if isManager(); }
+//     match /patrol_routes/{id}{ allow read: if isSignedIn(); allow write: if isManager(); }
+//     match /risk_zones/{id}   { allow read: if isSignedIn(); allow write: if isManager(); }
+//     match /tracked_animals/{id} { allow read: if isSignedIn(); allow write: if isManager(); }
+//     match /users/{uid}       { allow read: if isSignedIn(); allow write: if isManager() || request.auth.uid == uid; }
+//
+//     // Field data: signed-in users read/write within their park (tighten as needed).
+//     match /patrols/{id}          { allow read, write: if isSignedIn(); }
+//     match /patrol_positions/{id} { allow read, write: if isSignedIn(); }
+//     match /incident_reports/{id} { allow read, write: if isSignedIn(); }
+//     match /wildlife_risk_alerts/{id} { allow read, write: if isSignedIn(); }
+//     match /response_assignments/{id} { allow read, write: if isSignedIn(); }
+//     match /location_readings/{id}    { allow read, write: if isSignedIn(); }
+//     match /community_reports/{id}    { allow read: if isSignedIn(); allow write: if isSignedIn(); }
+//   }
+// }
