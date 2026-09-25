@@ -25,7 +25,10 @@ TrendBucket trendBucketFor(DateTime start, DateTime end) {
 ///
 /// Only [SyncState.synchronized] incidents and patrols contribute to totals.
 /// Pending and failed field records that match the filters are counted in
-/// [ConservationReport.excludedPendingCount] and left out of the totals.
+/// [ConservationReport.excludedPendingCount] and left out of the totals. That
+/// count tracks whole field records (incidents and patrols); patrol positions
+/// are telemetry within a patrol and are never counted on their own, so a
+/// single unsynchronized patrol contributes at most one to the tally.
 /// Wildlife risk alerts are online-first and have no sync state; every alert
 /// in the park and period is included.
 abstract final class ReportAggregator {
@@ -37,12 +40,17 @@ abstract final class ReportAggregator {
     required String snapshotId,
   }) {
     final cutoff = generatedAt.toUtc();
-    final windowStart = DateTime.utc(
+    // The user picks start/end as local calendar dates. Build the window as the
+    // matching local-midnight instants converted to UTC so that records (which
+    // are compared as UTC instants) fall on the same calendar day the user sees.
+    // Using DateTime.utc(...) with the local date digits would shift the
+    // boundary by the user's UTC offset and drop legitimately in-range records.
+    final windowStart = DateTime(
       criteria.startDate.year,
       criteria.startDate.month,
       criteria.startDate.day,
-    );
-    final windowEnd = DateTime.utc(
+    ).toUtc();
+    final windowEnd = DateTime(
       criteria.endDate.year,
       criteria.endDate.month,
       criteria.endDate.day,
@@ -50,7 +58,7 @@ abstract final class ReportAggregator {
       59,
       59,
       999,
-    );
+    ).toUtc();
     final selected = _unique(criteria.categories);
 
     final counts = {for (final category in selected) category: 0};
@@ -62,7 +70,9 @@ abstract final class ReportAggregator {
         continue;
       }
       if (!selected.contains(incident.category)) continue;
-      if (!incident.latitude.isFinite || !incident.longitude.isFinite) continue;
+      // Coordinates do not affect a categorical count, so an incident with a
+      // missing/non-finite location is still a real field record: count it when
+      // synchronized, otherwise tally it as excluded. Never drop it silently.
       if (incident.syncState == SyncState.synchronized) {
         counts[incident.category] = (counts[incident.category] ?? 0) + 1;
       } else {
@@ -74,7 +84,6 @@ abstract final class ReportAggregator {
       for (final patrol in source.patrols)
         if (patrol.parkId == criteria.parkId) patrol,
     ];
-    final patrolById = {for (final patrol in parkPatrols) patrol.id: patrol};
 
     final coverageValues = <double>[];
     for (final patrol in parkPatrols) {
@@ -90,15 +99,6 @@ abstract final class ReportAggregator {
       } else if (patrol.syncState != SyncState.synchronized) {
         excluded++;
       }
-    }
-
-    for (final position in source.positions) {
-      final patrol = patrolById[position.patrolId];
-      if (patrol == null) continue;
-      if (!_inWindow(position.timestamp, windowStart, windowEnd, cutoff)) {
-        continue;
-      }
-      if (position.syncState != SyncState.synchronized) excluded++;
     }
 
     var open = 0;
