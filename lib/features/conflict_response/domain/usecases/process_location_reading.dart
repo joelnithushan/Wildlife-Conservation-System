@@ -3,7 +3,6 @@ import '../../../../shared/models/location_reading.dart';
 import '../../../../shared/models/risk_zone.dart';
 import '../../../../shared/models/wildlife_risk_alert.dart';
 import '../../data/repositories/conflict_repository_impl.dart';
-import 'dart:math';
 
 class ProcessLocationReading {
   final ConflictRepositoryImpl repository;
@@ -62,19 +61,17 @@ class ProcessLocationReading {
   bool _isInsideZone(LocationReading reading, RiskZone zone) {
     if (zone.boundary.isEmpty) return false;
     
-    // Ray-casting algorithm for point in polygon
-    int i, j;
-    bool c = false;
-    int nvert = zone.boundary.length;
-    for (i = 0, j = nvert - 1; i < nvert; j = i++) {
+    // Ray-casting algorithm for point in polygon.
+    final nvert = zone.boundary.length;
+    final testx = reading.longitude;
+    final testy = reading.latitude;
+    var c = false;
+    for (var i = 0, j = nvert - 1; i < nvert; j = i++) {
       final vxi = zone.boundary[i].longitude;
       final vyi = zone.boundary[i].latitude;
       final vxj = zone.boundary[j].longitude;
       final vyj = zone.boundary[j].latitude;
-      
-      final testx = reading.longitude;
-      final testy = reading.latitude;
-      
+
       if (((vyi > testy) != (vyj > testy)) &&
           (testx < (vxj - vxi) * (testy - vyi) / (vyj - vyi) + vxi)) {
         c = !c;
