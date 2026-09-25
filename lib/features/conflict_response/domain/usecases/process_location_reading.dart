@@ -1,12 +1,8 @@
-import 'package:riverpod_annotation/riverpod_annotation.dart';
-
 import '../../../../core/enums/app_enums.dart';
 import '../../../../shared/models/location_reading.dart';
 import '../../../../shared/models/risk_zone.dart';
 import '../../../../shared/models/wildlife_risk_alert.dart';
 import '../../data/repositories/conflict_repository_impl.dart';
-
-part 'process_location_reading.g.dart';
 
 class ProcessLocationReading {
   final ConflictRepositoryImpl repository;
