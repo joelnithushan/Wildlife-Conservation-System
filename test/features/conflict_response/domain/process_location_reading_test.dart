@@ -10,8 +10,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class MockFirestore extends Mock implements FirebaseFirestore {}
 class MockConflictRepo extends Mock implements ConflictRepositoryImpl {}
+class FakeWildlifeRiskAlert extends Fake implements WildlifeRiskAlert {}
 
 void main() {
+  setUpAll(() {
+    registerFallbackValue(FakeWildlifeRiskAlert());
+  });
+
   group('ProcessLocationReading', () {
     late ProcessLocationReading usecase;
     late MockConflictRepo mockRepo;
