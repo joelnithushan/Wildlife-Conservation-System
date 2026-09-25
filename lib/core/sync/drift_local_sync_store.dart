@@ -49,7 +49,7 @@ class DriftLocalSyncStore implements LocalSyncStore {
         SyncItem(
           collection: FirestoreCollections.incidentReports,
           id: row.id,
-          data: row.toJson(),
+          data: _incidentRowWire(row),
         ),
     ];
   }
@@ -71,3 +71,28 @@ class DriftLocalSyncStore implements LocalSyncStore {
     }
   }
 }
+
+/// Wire map for a pending incident row. Drift data classes have no toJson;
+/// the payload matches IncidentReport.toMap so sync upserts the domain record.
+Map<String, dynamic> _incidentRowWire(IncidentReportsTableData row) => {
+      'id': row.id,
+      'rangerId': row.rangerId,
+      'patrolId': row.patrolId,
+      'parkId': row.parkId,
+      'category': row.category,
+      'description': row.description,
+      'observedAt': row.observedAt.toUtc().toIso8601String(),
+      'latitude': row.latitude,
+      'longitude': row.longitude,
+      'locationSource': row.locationSource,
+      'localPhotoPath': row.localPhotoPath,
+      'photoUrl': row.photoUrl,
+      'evidenceOmissionReason': row.evidenceOmissionReason,
+      'submissionStatus': row.submissionStatus,
+      'reviewStatus': row.reviewStatus,
+      'reviewerId': row.reviewerId,
+      'reviewNotes': row.reviewNotes,
+      'reviewedAt': row.reviewedAt?.toUtc().toIso8601String(),
+      'syncState': row.syncState,
+      'createdAt': row.createdAt.toUtc().toIso8601String(),
+    };
