@@ -119,7 +119,88 @@ void main() {
     expect(report.patrolCoverage, 60);
     expect(report.completedPatrolCount, 2);
     expect(report.hasPatrolCoverage, isTrue);
-    expect(report.excludedPendingCount, 2);
+    // Only the pending patrol is an excluded field record. The pending position
+    // on synchronized patrol 'c1' is telemetry within that patrol and must not
+    // add to the count on its own.
+    expect(report.excludedPendingCount, 1);
+  });
+
+  test('positions never inflate the excluded field-record count', () {
+    final report = ReportAggregator.aggregate(
+      criteria: criteria(),
+      parkName: 'Minneriya',
+      generatedAt: generatedAt,
+      snapshotId: 'snap-positions',
+      source: ReportSourceData(
+        patrols: [
+          testPatrol(
+            id: 'p-pending',
+            completedAt: DateTime.utc(2026, 3, 8),
+            coveragePercent: 90,
+            syncState: SyncState.pending,
+          ),
+        ],
+        positions: [
+          for (var i = 0; i < 50; i++)
+            testPosition(
+                id: 'pos-$i',
+                patrolId: 'p-pending',
+                syncState: SyncState.pending),
+        ],
+      ),
+    );
+
+    // One pending patrol with 50 pending positions is one excluded record.
+    expect(report.excludedPendingCount, 1);
+  });
+
+  test('synchronized incidents with a bad location are still counted', () {
+    final report = ReportAggregator.aggregate(
+      criteria: criteria(categories: const [IncidentCategory.poaching]),
+      parkName: 'Minneriya',
+      generatedAt: generatedAt,
+      snapshotId: 'snap-badcoord',
+      source: ReportSourceData(
+        incidents: [
+          testIncident(id: 'ok'),
+          testIncident(id: 'no-lat', latitude: double.nan),
+          testIncident(id: 'no-long', longitude: double.infinity),
+        ],
+      ),
+    );
+
+    // All three are synchronized in-park in-window poaching incidents; a
+    // missing coordinate must not silently drop them from the count.
+    expect(report.totalIncidents, 3);
+    expect(report.incidentCounts[IncidentCategory.poaching], 3);
+    expect(report.excludedPendingCount, 0);
+  });
+
+  test('date window follows the local calendar day, not UTC digits', () {
+    // Records at the very start and very end of the local calendar window must
+    // be included regardless of the machine's UTC offset.
+    final startOfWindow = DateTime(2026, 3, 1, 0, 0);
+    final endOfWindow = DateTime(2026, 3, 31, 23, 59, 59);
+    final report = ReportAggregator.aggregate(
+      criteria: criteria(
+        categories: const [IncidentCategory.poaching],
+        start: DateTime(2026, 3, 1),
+        end: DateTime(2026, 3, 31),
+      ),
+      parkName: 'Minneriya',
+      generatedAt: DateTime.utc(2026, 4, 1, 9),
+      snapshotId: 'snap-tz',
+      source: ReportSourceData(
+        incidents: [
+          testIncident(id: 'first', observedAt: startOfWindow),
+          testIncident(id: 'last', observedAt: endOfWindow),
+          testIncident(
+              id: 'before', observedAt: DateTime(2026, 2, 28, 23, 59, 59)),
+        ],
+      ),
+    );
+
+    expect(report.totalIncidents, 2);
   });
 
   test('11b. no completed patrols yields N/A coverage', () {
