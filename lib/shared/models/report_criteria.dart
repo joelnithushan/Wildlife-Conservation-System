@@ -17,7 +17,9 @@ class ReportCriteria extends Equatable {
   final DateTime startDate;
   final DateTime endDate;
 
-  /// Incident categories to include. Empty means "all categories".
+  /// Incident categories to include. At least one category is required; the
+  /// validator and repository reject an empty selection (see
+  /// [ReportFilterValidator] and the report repository).
   final List<IncidentCategory> categories;
 
   bool get isValid => Validators.validDateRange(startDate, endDate);

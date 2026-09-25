@@ -13,8 +13,9 @@ class IncidentCategoryChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final categories =
-        report.criteria?.categories ?? report.incidentCounts.keys.toList();
+    final categories = report.criteria?.categories ??
+        (report.incidentCounts.keys.toList()
+          ..sort((a, b) => a.index.compareTo(b.index)));
     if (categories.isEmpty) {
       return const _ChartEmpty(message: 'No incident categories selected.');
     }
@@ -52,9 +53,14 @@ class IncidentCategoryChart extends StatelessWidget {
               sideTitles: SideTitles(
                 showTitles: true,
                 reservedSize: 32,
+                // One label per category; without this fl_chart picks a default
+                // interval that can skip or duplicate category labels.
+                interval: 1,
                 getTitlesWidget: (value, meta) {
                   final index = value.toInt();
-                  if (index < 0 || index >= categories.length) {
+                  if (index < 0 ||
+                      index >= categories.length ||
+                      value != index.toDouble()) {
                     return const SizedBox.shrink();
                   }
                   return Padding(
