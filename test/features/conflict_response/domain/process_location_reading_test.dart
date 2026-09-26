@@ -1,131 +1,102 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wildlife_conservation_system/features/conflict_response/domain/usecases/process_location_reading.dart';
-import 'package:wildlife_conservation_system/shared/models/location_reading.dart';
-import 'package:wildlife_conservation_system/shared/models/wildlife_risk_alert.dart';
+import 'package:wildlife_conservation_system/features/conflict_response/domain/reading_validation.dart';
 import 'package:wildlife_conservation_system/shared/demo/demo_data.dart';
-import 'package:wildlife_conservation_system/features/conflict_response/data/repositories/conflict_repository_impl.dart';
-import 'package:wildlife_conservation_system/core/enums/app_enums.dart';
-import 'package:mocktail/mocktail.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:wildlife_conservation_system/shared/models/risk_zone.dart';
-import 'package:wildlife_conservation_system/shared/models/geo_coordinate.dart';
+import 'package:wildlife_conservation_system/shared/models/location_reading.dart';
 
-class MockFirestore extends Mock implements FirebaseFirestore {}
-class MockConflictRepo extends Mock implements ConflictRepositoryImpl {}
-class FakeWildlifeRiskAlert extends Fake implements WildlifeRiskAlert {}
-
+/// Pure use-case tests: no repository, no Firebase, deterministic clock.
 void main() {
-  setUpAll(() {
-    registerFallbackValue(FakeWildlifeRiskAlert());
+  final now = DateTime.utc(2026, 9, 26, 10, 0, 0);
+  final zones = DemoData.riskZones;
+  const usecase = ProcessLocationReading();
+
+  LocationReading r({
+    String id = 'r1',
+    double lat = 8.030,
+    double lon = 80.900,
+    DateTime? observed,
+  }) =>
+      LocationReading(
+        id: id,
+        animalId: 'EL-07',
+        latitude: lat,
+        longitude: lon,
+        observedAt: observed ?? now,
+        receivedAt: observed ?? now,
+      );
+
+  test('creates an alert for a valid reading inside a zone', () {
+    final result = usecase.call(
+      reading: r(),
+      activeZones: zones,
+      existingAlerts: const [],
+      now: now,
+    );
+    expect(result.outcome, ProcessOutcome.alertCreated);
+    expect(result.alert, isNotNull);
+    expect(result.zone!.id, 'RZ-01');
   });
 
-  group('ProcessLocationReading', () {
-    late ProcessLocationReading usecase;
-    late MockConflictRepo mockRepo;
-
-    final mockZone = RiskZone(
-      id: 'ZONE1',
-      parkId: 'PARK1',
-      name: 'Test Zone',
-      riskLevel: RiskLevel.high,
-      boundary: const [
-        GeoCoordinate(latitude: 0, longitude: 0),
-        GeoCoordinate(latitude: 0, longitude: 10),
-        GeoCoordinate(latitude: 10, longitude: 10),
-        GeoCoordinate(latitude: 10, longitude: 0),
-      ],
+  test('no alert when the point is outside every zone', () {
+    final result = usecase.call(
+      reading: r(lat: 8.200, lon: 81.200),
+      activeZones: zones,
+      existingAlerts: const [],
+      now: now,
     );
+    expect(result.outcome, ProcessOutcome.outsideZone);
+    expect(result.alert, isNull);
+  });
 
-    setUp(() {
-      mockRepo = MockConflictRepo();
-      usecase = ProcessLocationReading(mockRepo);
-      when(() => mockRepo.saveAlert(any())).thenAnswer((_) async {});
-    });
+  test('updates the existing open alert instead of duplicating', () {
+    final first = usecase.call(
+      reading: r(id: 'r1'),
+      activeZones: zones,
+      existingAlerts: const [],
+      now: now,
+    );
+    final second = usecase.call(
+      reading: r(id: 'r2'),
+      activeZones: zones,
+      existingAlerts: [first.alert!],
+      now: now,
+    );
+    expect(second.outcome, ProcessOutcome.alertUpdated);
+    expect(second.alert!.id, first.alert!.id);
+  });
 
-    test('valid collar reading inside zone creates alert', () async {
-      final reading = LocationReading.create(
-        animalId: 'EL-07',
-        latitude: 5.0,
-        longitude: 5.0,
-        observedAt: DateTime.now(),
-        receivedAt: DateTime.now(),
-      );
-      
-      final alert = await usecase.call(
-        reading: reading,
-        activeZones: [mockZone],
-        existingAlerts: [],
-      );
-      
-      expect(alert, isNotNull);
-      verify(() => mockRepo.saveAlert(any())).called(1);
-    });
-    
-    test('reading outside zone creates no alert', () async {
-      final reading = LocationReading.create(
-        animalId: 'EL-07',
-        latitude: 20.0,
-        longitude: 20.0,
-        observedAt: DateTime.now(),
-        receivedAt: DateTime.now(),
-      );
-      
-      final alert = await usecase.call(
-        reading: reading,
-        activeZones: [mockZone],
-        existingAlerts: [],
-      );
-      
-      expect(alert, isNull);
-    });
+  test('rejects a stale reading', () {
+    final result = usecase.call(
+      reading: r(observed: now.subtract(const Duration(hours: 3))),
+      activeZones: zones,
+      existingAlerts: const [],
+      now: now,
+    );
+    expect(result.outcome, ProcessOutcome.rejected);
+    expect(result.rejection, ReadingRejection.stale);
+  });
 
-    test('stale reading creates no alert', () async {
-      final reading = LocationReading.create(
-        animalId: 'EL-07',
-        latitude: 5.0,
-        longitude: 5.0,
-        observedAt: DateTime.now().subtract(const Duration(hours: 2)),
-        receivedAt: DateTime.now(),
-      );
-      
-      final alert = await usecase.call(
-        reading: reading,
-        activeZones: [mockZone],
-        existingAlerts: [],
-      );
-      
-      expect(alert, isNull);
-    });
-    
-    test('existing open alert updated instead of duplicated', () async {
-      final reading = LocationReading.create(
-        animalId: 'EL-07',
-        latitude: 5.0,
-        longitude: 5.0,
-        observedAt: DateTime.now(),
-        receivedAt: DateTime.now(),
-      );
-      
-      final existingAlert = WildlifeRiskAlert.create(
-        parkId: 'PARK1',
-        source: AlertSource.collar,
-        latitude: 5.0,
-        longitude: 5.0,
-        severity: AlertSeverity.high,
-        createdAt: DateTime.now(),
-        animalId: 'EL-07',
-        riskZoneId: 'ZONE1',
-      );
-      
-      final alert = await usecase.call(
-        reading: reading,
-        activeZones: [mockZone],
-        existingAlerts: [existingAlert],
-      );
-      
-      expect(alert, isNotNull);
-      expect(alert!.id, existingAlert.id);
-      verify(() => mockRepo.saveAlert(any())).called(1);
-    });
+  test('rejects a duplicate reading id', () {
+    final result = usecase.call(
+      reading: r(id: 'seen'),
+      activeZones: zones,
+      existingAlerts: const [],
+      now: now,
+      seenReadingIds: {'seen'},
+    );
+    expect(result.rejection, ReadingRejection.duplicate);
+  });
+
+  test('community point raises a source=communityReport alert', () {
+    final result = usecase.fromCommunityPoint(
+      parkId: 'PARK-MIN',
+      latitude: 8.010,
+      longitude: 80.870,
+      activeZones: zones,
+      existingAlerts: const [],
+      now: now,
+    );
+    expect(result.outcome, ProcessOutcome.alertCreated);
+    expect(result.alert!.animalId, isNull);
   });
 }
