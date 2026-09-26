@@ -1,10 +1,12 @@
 import '../../core/enums/app_enums.dart';
 import '../models/app_user.dart';
+import '../models/community_report.dart';
 import '../models/geo_coordinate.dart';
 import '../models/park.dart';
 import '../models/patrol_route.dart';
 import '../models/risk_zone.dart';
 import '../models/tracked_animal.dart';
+import '../models/wildlife_risk_alert.dart';
 
 /// Development/demo seed data. Pure in-memory constants — this NEVER writes to
 /// or deletes from Firebase. A seeding mechanism can push these into the local
@@ -104,26 +106,56 @@ abstract final class DemoData {
   ];
 
   // --- Risk zones ---
+  // Each zone carries a small rectangular boundary polygon near Minneriya so the
+  // point-in-polygon risk check is meaningful in demos and tests. Points are
+  // (lat, lon) corners walked clockwise.
   static const riskZones = <RiskZone>[
     RiskZone(
       id: 'RZ-01',
       parkId: 'PARK-MIN',
       name: 'Farmland East',
       riskLevel: RiskLevel.high,
+      boundary: [
+        GeoCoordinate(latitude: 8.020, longitude: 80.890),
+        GeoCoordinate(latitude: 8.040, longitude: 80.890),
+        GeoCoordinate(latitude: 8.040, longitude: 80.910),
+        GeoCoordinate(latitude: 8.020, longitude: 80.910),
+      ],
     ),
     RiskZone(
       id: 'RZ-02',
       parkId: 'PARK-MIN',
       name: 'Village Edge',
       riskLevel: RiskLevel.medium,
+      boundary: [
+        GeoCoordinate(latitude: 8.000, longitude: 80.860),
+        GeoCoordinate(latitude: 8.020, longitude: 80.860),
+        GeoCoordinate(latitude: 8.020, longitude: 80.880),
+        GeoCoordinate(latitude: 8.000, longitude: 80.880),
+      ],
     ),
     RiskZone(
       id: 'RZ-03',
       parkId: 'PARK-MIN',
       name: 'A11 Junction',
       riskLevel: RiskLevel.medium,
+      boundary: [
+        GeoCoordinate(latitude: 7.980, longitude: 80.850),
+        GeoCoordinate(latitude: 8.000, longitude: 80.850),
+        GeoCoordinate(latitude: 8.000, longitude: 80.870),
+        GeoCoordinate(latitude: 7.980, longitude: 80.870),
+      ],
     ),
   ];
+
+  /// A coordinate guaranteed to sit inside [RZ-01] (Farmland East) — handy for
+  /// simulating a collar reading that should raise an alert.
+  static const insideRiskZonePoint =
+      GeoCoordinate(latitude: 8.030, longitude: 80.900);
+
+  /// A coordinate outside every configured risk zone.
+  static const outsideRiskZonePoint =
+      GeoCoordinate(latitude: 8.200, longitude: 81.200);
 
   // --- Tracked animals ---
   static const trackedAnimals = <TrackedAnimal>[
@@ -133,5 +165,70 @@ abstract final class DemoData {
       species: 'Elephant',
       collarId: 'COLLAR-EL07',
     ),
+    TrackedAnimal(
+      id: 'EL-09',
+      code: 'EL-09',
+      species: 'Elephant',
+      collarId: 'COLLAR-EL09',
+    ),
   ];
+
+  // --- UC03 responders ---
+  /// Responders for conflict response. One responder is marked unavailable to
+  /// exercise the "responder not selectable / no responder available" paths.
+  static List<AppUser> get conflictResponders => [
+        rangerPerera,
+        rangerSilva.copyWith(isAvailable: false),
+        liaisonOfficer,
+      ];
+
+  // --- UC03 community reports (Trigger B) ---
+  /// Static community reports. IDs are stable so verifying one never creates a
+  /// duplicate. One sits inside a risk zone (credible), one outside it.
+  static List<CommunityReport> get communityReports => [
+        CommunityReport(
+          id: 'community_demo_1',
+          parkId: parkId,
+          description: 'Elephant seen pushing against the village fence.',
+          latitude: 8.010,
+          longitude: 80.870,
+          createdAt: DateTime.utc(2026, 9, 25, 6, 30),
+        ),
+        CommunityReport(
+          id: 'community_demo_2',
+          parkId: parkId,
+          description: 'Distant sighting far from any settlement.',
+          latitude: 8.200,
+          longitude: 81.200,
+          createdAt: DateTime.utc(2026, 9, 25, 5, 0),
+        ),
+      ];
+
+  // --- UC03 seeded alerts ---
+  /// Two open alerts so the Risk Alerts screen has data on first launch. Stable
+  /// IDs and constructed via the plain constructor (not `create`) so they stay
+  /// deterministic across runs and tests.
+  static List<WildlifeRiskAlert> seededAlerts(DateTime now) => [
+        WildlifeRiskAlert(
+          id: 'alert_demo_collar',
+          parkId: parkId,
+          source: AlertSource.collar,
+          latitude: 8.030,
+          longitude: 80.900,
+          severity: AlertSeverity.high,
+          createdAt: now.subtract(const Duration(minutes: 8)),
+          animalId: 'EL-07',
+          riskZoneId: 'RZ-01',
+        ),
+        WildlifeRiskAlert(
+          id: 'alert_demo_community',
+          parkId: parkId,
+          source: AlertSource.communityReport,
+          latitude: 8.010,
+          longitude: 80.870,
+          severity: AlertSeverity.medium,
+          createdAt: now.subtract(const Duration(minutes: 20)),
+          riskZoneId: 'RZ-02',
+        ),
+      ];
 }

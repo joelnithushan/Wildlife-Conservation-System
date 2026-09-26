@@ -2,7 +2,11 @@ import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../features/analytics/presentation/screens/analytics_screen.dart';
+import '../../features/conflict_response/presentation/screens/alert_details_screen.dart';
+import '../../features/conflict_response/presentation/screens/assign_responder_screen.dart';
 import '../../features/conflict_response/presentation/screens/conflict_response_screen.dart';
+import '../../features/conflict_response/presentation/screens/responder_assignment_screen.dart';
+import '../../features/conflict_response/presentation/screens/response_tracking_screen.dart';
 import '../../features/incidents/presentation/screens/incidents_screen.dart';
 import '../../features/patrol/presentation/screens/assign_patrol_route_screen.dart';
 import '../../features/patrol/presentation/screens/manual_waypoint_screen.dart';
@@ -32,6 +36,18 @@ abstract final class AppRoutes {
   static String activeFor(String id) => '/patrol-active/$id';
   static String waypointFor(String id) => '/patrol-waypoint/$id';
   static String summaryFor(String id) => '/patrol-summary/$id';
+
+  // UC03 conflict-response flow (outside the bottom-nav shell).
+  static const alertDetails = '/alert-details/:id';
+  static const assignResponder = '/assign-responder/:id';
+  static const responderAssignment = '/responder-assignment/:id';
+  static const responseTracking = '/response-tracking/:id';
+
+  static String alertDetailsFor(String id) => '/alert-details/$id';
+  static String assignResponderFor(String id) => '/assign-responder/$id';
+  static String responderAssignmentFor(String id) =>
+      '/responder-assignment/$id';
+  static String responseTrackingFor(String id) => '/response-tracking/$id';
 }
 
 @riverpod
@@ -93,6 +109,28 @@ GoRouter appRouter(Ref ref) {
         path: AppRoutes.patrolSummary,
         builder: (context, state) =>
             PatrolSummaryScreen(patrolId: state.pathParameters['id']!),
+      ),
+
+      // UC03 – Coordinate Wildlife Conflict Response
+      GoRoute(
+        path: AppRoutes.alertDetails,
+        builder: (context, state) =>
+            AlertDetailsScreen(alertId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: AppRoutes.assignResponder,
+        builder: (context, state) =>
+            AssignResponderScreen(alertId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: AppRoutes.responderAssignment,
+        builder: (context, state) =>
+            ResponderAssignmentScreen(alertId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: AppRoutes.responseTracking,
+        builder: (context, state) =>
+            ResponseTrackingScreen(alertId: state.pathParameters['id']!),
       ),
     ],
   );
