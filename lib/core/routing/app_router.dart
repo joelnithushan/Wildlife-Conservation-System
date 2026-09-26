@@ -8,6 +8,8 @@ import '../../features/conflict_response/presentation/screens/conflict_response_
 import '../../features/conflict_response/presentation/screens/responder_assignment_screen.dart';
 import '../../features/conflict_response/presentation/screens/response_tracking_screen.dart';
 import '../../features/incidents/presentation/screens/incidents_screen.dart';
+import '../../features/onboarding/presentation/screens/onboarding_screen.dart';
+import '../../features/onboarding/presentation/screens/splash_screen.dart';
 import '../../features/patrol/presentation/screens/assign_patrol_route_screen.dart';
 import '../../features/patrol/presentation/screens/manual_waypoint_screen.dart';
 import '../../features/patrol/presentation/screens/my_patrols_screen.dart';
@@ -19,6 +21,8 @@ import '../widgets/home_shell.dart';
 part 'app_router.g.dart';
 
 abstract final class AppRoutes {
+  static const splash = '/splash';
+  static const onboarding = '/onboarding';
   static const home = '/';
   static const patrol = '/patrol';
   static const incidents = '/incidents';
@@ -53,9 +57,17 @@ abstract final class AppRoutes {
 @riverpod
 GoRouter appRouter(Ref ref) {
   return GoRouter(
-    initialLocation: AppRoutes.home,
+    initialLocation: AppRoutes.splash,
     debugLogDiagnostics: false,
     routes: [
+      GoRoute(
+        path: AppRoutes.splash,
+        builder: (context, state) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.onboarding,
+        builder: (context, state) => const OnboardingScreen(),
+      ),
       ShellRoute(
         builder: (context, state, child) => HomeShell(child: child),
         routes: [

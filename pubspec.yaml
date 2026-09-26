@@ -48,6 +48,7 @@ dependencies:
   equatable: ^2.0.7
   uuid: ^4.5.1
   intl: ^0.19.0
+  shared_preferences: ^2.3.2
 
 dev_dependencies:
   flutter_test:
@@ -57,6 +58,24 @@ dev_dependencies:
   riverpod_generator: ^4.0.9
   drift_dev: ^2.20.3
   mocktail: ^1.0.4
+  flutter_launcher_icons: ^0.14.1
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/
+
+# App launcher icons generated from the Wild Guard logo.
+# Regenerate with: dart run flutter_launcher_icons
+flutter_launcher_icons:
+  image_path: "assets/images/wildguard_logo.png"
+  android: true
+  ios: true
+  remove_alpha_ios: true
+  background_color_ios: "#F7F5F0"
+  adaptive_icon_background: "#F7F5F0"
+  adaptive_icon_foreground: "assets/images/wildguard_logo.png"
+  web:
+    generate: true
+    background_color: "#F7F5F0"
+    theme_color: "#1F5A43"
