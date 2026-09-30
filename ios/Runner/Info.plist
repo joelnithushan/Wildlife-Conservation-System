@@ -2,6 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>WildGuard uses your location to record patrol routes and wildlife incident locations.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>WildGuard uses the camera to capture wildlife incident evidence.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>WildGuard accesses your photo library so you can attach wildlife incident evidence.</string>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
