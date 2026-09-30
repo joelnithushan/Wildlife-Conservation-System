@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/enums/app_enums.dart';
 import '../../../../core/utils/date_extensions.dart';
+import '../../../../shared/demo/demo_data.dart';
 import '../../../../shared/models/app_user.dart';
 import '../../../../shared/models/patrol_route.dart';
+import '../../../../shared/session/current_user.dart';
 import '../providers/patrol_providers.dart';
 import '../widgets/route_preview.dart';
 
@@ -165,12 +168,16 @@ class _AssignPatrolRouteScreenState
   }
 
   Widget _contextLine() {
-    return const Align(
+    // Authenticated Park Manager context (no hardcoded name/park).
+    final user = ref.watch(currentUserProvider);
+    final park =
+        user.parkId == DemoData.park.id ? DemoData.park.name : user.parkId;
+    return Align(
       alignment: Alignment.centerRight,
       child: Padding(
-        padding: EdgeInsets.only(bottom: 8),
-        child: Text('Park Manager · Minneriya NP',
-            style: TextStyle(fontSize: 12, color: Colors.grey)),
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text('${user.role.displayLabel} · $park',
+            style: const TextStyle(fontSize: 12, color: Colors.grey)),
       ),
     );
   }
