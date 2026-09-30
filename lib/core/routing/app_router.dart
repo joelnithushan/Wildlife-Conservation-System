@@ -1,7 +1,20 @@
+import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
 import '../../features/analytics/presentation/screens/analytics_screen.dart';
+import '../../features/auth/application/auth_controller.dart';
+import '../../features/auth/domain/access_policy.dart';
+import '../../features/auth/domain/auth_session.dart';
+import '../../features/auth/presentation/screens/access_denied_screen.dart';
+import '../../features/auth/presentation/screens/account_issue_screen.dart';
+import '../../features/auth/presentation/screens/dashboards/clo_dashboard_screen.dart';
+import '../../features/auth/presentation/screens/dashboards/manager_dashboard_screen.dart';
+import '../../features/auth/presentation/screens/dashboards/ranger_dashboard_screen.dart';
+import '../../features/auth/presentation/screens/dashboards/researcher_dashboard_screen.dart';
+import '../../features/auth/presentation/screens/forgot_password_screen.dart';
+import '../../features/auth/presentation/screens/login_screen.dart';
+import '../../features/auth/presentation/screens/profile_screen.dart';
 import '../../features/conflict_response/presentation/screens/alert_details_screen.dart';
 import '../../features/conflict_response/presentation/screens/assign_responder_screen.dart';
 import '../../features/conflict_response/presentation/screens/conflict_response_screen.dart';
@@ -15,6 +28,7 @@ import '../../features/incidents/presentation/screens/incident_review_queue_scre
 import '../../features/incidents/presentation/screens/incident_review_screen.dart';
 import '../../features/incidents/presentation/screens/incidents_screen.dart';
 import '../../features/incidents/presentation/screens/new_incident_screen.dart';
+import '../../features/onboarding/presentation/providers/onboarding_providers.dart';
 import '../../features/onboarding/presentation/screens/onboarding_screen.dart';
 import '../../features/onboarding/presentation/screens/splash_screen.dart';
 import '../../features/patrol/presentation/screens/assign_patrol_route_screen.dart';
@@ -35,6 +49,19 @@ abstract final class AppRoutes {
   static const incidents = '/incidents';
   static const conflictResponse = '/conflict-response';
   static const analytics = '/analytics';
+
+  // Shared authentication routes.
+  static const login = '/login';
+  static const forgotPassword = '/forgot-password';
+  static const profile = '/profile';
+  static const accessDenied = '/access-denied';
+  static const accountIssue = '/account-issue';
+
+  // Role-based dashboards (landing screen per role after sign-in).
+  static const managerDashboard = '/manager';
+  static const rangerDashboard = '/ranger';
+  static const cloDashboard = '/clo';
+  static const researcherDashboard = '/researcher';
 
   // UC01 patrol flow (outside the bottom-nav shell).
   static const assignPatrol = '/assign-patrol';
@@ -73,11 +100,70 @@ abstract final class AppRoutes {
   static String responseTrackingFor(String id) => '/response-tracking/$id';
 }
 
+/// Bridges Riverpod auth state to go_router: whenever the session or onboarding
+/// flag changes, the router re-runs its [redirect] so guards stay in sync.
+class _AuthRefreshListenable extends ChangeNotifier {
+  _AuthRefreshListenable(Ref ref) {
+    ref.listen(authControllerProvider, (_, __) => notifyListeners());
+    ref.listen(onboardingCompletedProvider, (_, __) => notifyListeners());
+  }
+}
+
+/// Centralized route guard. Returns the path to redirect to, or `null` to allow.
+String? _guard(Ref ref, String location) {
+  final session = ref.read(authControllerProvider);
+  final onboarded = ref.read(onboardingCompletedProvider);
+
+  // Restoring session / loading profile → hold on the splash/loading screen.
+  if (session is AuthInitial || session is AuthLoadingProfile) {
+    return location == AppRoutes.splash ? null : AppRoutes.splash;
+  }
+
+  if (session is AuthUnauthenticated) {
+    if (!onboarded) {
+      return location == AppRoutes.onboarding ? null : AppRoutes.onboarding;
+    }
+    const allowed = {
+      AppRoutes.login,
+      AppRoutes.forgotPassword,
+      AppRoutes.onboarding,
+    };
+    return allowed.contains(location) ? null : AppRoutes.login;
+  }
+
+  if (session is AuthProfileError) {
+    return location == AppRoutes.accountIssue ? null : AppRoutes.accountIssue;
+  }
+
+  if (session is Authenticated) {
+    final role = session.user.role;
+    final home = AccessPolicy.homeRoute(role);
+    // Bounce authenticated users away from pre-auth / loading screens.
+    const preAuth = {
+      AppRoutes.splash,
+      AppRoutes.login,
+      AppRoutes.forgotPassword,
+      AppRoutes.onboarding,
+      AppRoutes.accountIssue,
+    };
+    if (preAuth.contains(location)) return home;
+    if (!AccessPolicy.canAccess(role, location)) return AppRoutes.accessDenied;
+    return null;
+  }
+
+  return null;
+}
+
 @riverpod
 GoRouter appRouter(Ref ref) {
+  final refresh = _AuthRefreshListenable(ref);
+  ref.onDispose(refresh.dispose);
+
   return GoRouter(
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: false,
+    refreshListenable: refresh,
+    redirect: (context, state) => _guard(ref, state.matchedLocation),
     routes: [
       GoRoute(
         path: AppRoutes.splash,
@@ -86,6 +172,46 @@ GoRouter appRouter(Ref ref) {
       GoRoute(
         path: AppRoutes.onboarding,
         builder: (context, state) => const OnboardingScreen(),
+      ),
+
+      // --- Shared authentication routes ---
+      GoRoute(
+        path: AppRoutes.login,
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.forgotPassword,
+        builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.profile,
+        builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.accessDenied,
+        builder: (context, state) => const AccessDeniedScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.accountIssue,
+        builder: (context, state) => const AccountIssueScreen(),
+      ),
+
+      // --- Role-based dashboards ---
+      GoRoute(
+        path: AppRoutes.managerDashboard,
+        builder: (context, state) => const ManagerDashboardScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.rangerDashboard,
+        builder: (context, state) => const RangerDashboardScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.cloDashboard,
+        builder: (context, state) => const CloDashboardScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.researcherDashboard,
+        builder: (context, state) => const ResearcherDashboardScreen(),
       ),
       ShellRoute(
         builder: (context, state, child) => HomeShell(child: child),
