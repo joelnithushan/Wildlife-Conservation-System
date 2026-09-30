@@ -55,6 +55,14 @@
         { "fieldPath": "alertId", "order": "ASCENDING" },
         { "fieldPath": "assignedAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "community_reports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "parkId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
