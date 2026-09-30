@@ -70,8 +70,10 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
 
   Future<void> _finish() async {
     await ref.read(onboardingRepositoryProvider).markCompleted();
+    // Flip the synchronous flag the router guard reads, then hand off to auth.
+    ref.read(onboardingCompletedProvider.notifier).complete();
     if (!mounted) return;
-    context.go(AppRoutes.home);
+    context.go(AppRoutes.login);
   }
 
   void _next() {

@@ -20,6 +20,7 @@ abstract final class DemoData {
   static const parkManager = AppUser(
     id: 'PM001',
     name: 'Park Manager',
+    email: 'manager@wildguard.lk',
     role: UserRole.parkManager,
     parkId: 'PARK-MIN',
   );
@@ -27,6 +28,7 @@ abstract final class DemoData {
   static const rangerPerera = AppUser(
     id: 'R001',
     name: 'K. Perera',
+    email: 'ranger1@wildguard.lk',
     role: UserRole.ranger,
     parkId: 'PARK-MIN',
   );
@@ -34,6 +36,7 @@ abstract final class DemoData {
   static const rangerSilva = AppUser(
     id: 'R002',
     name: 'R. Silva',
+    email: 'ranger2@wildguard.lk',
     role: UserRole.ranger,
     parkId: 'PARK-MIN',
   );
@@ -41,6 +44,7 @@ abstract final class DemoData {
   static const liaisonOfficer = AppUser(
     id: 'CLO001',
     name: 'S. Nimal',
+    email: 'clo@wildguard.lk',
     role: UserRole.communityLiaisonOfficer,
     parkId: 'PARK-MIN',
   );
@@ -48,6 +52,7 @@ abstract final class DemoData {
   static const researcher = AppUser(
     id: 'CR001',
     name: 'Conservation Researcher',
+    email: 'researcher@wildguard.lk',
     role: UserRole.conservationResearcher,
     parkId: 'PARK-MIN',
   );

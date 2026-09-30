@@ -258,14 +258,119 @@ firebase deploy --only firestore:rules,firestore:indexes,storage
 ```
 
 - **Collections** are centralised in `core/constants/firestore_collections.dart`.
-- **Rules**: `firestore.rules` / `storage.rules` ship **development** rules (open
-  with a hard expiry) plus a commented **recommended** auth-based block. Real
-  role security needs Firebase Auth — the client `CurrentUserProvider` is a demo
-  session only, not backend security.
+- **Rules**: `firestore.rules` now ships **authenticated, role-aware** rules as
+  the active block (signed-in required; reference data manager-only; per-user
+  profile access) with a commented development/emulator block kept for local work.
+  See "Shared Authentication & Role-Based Access" below.
 - **Indexes**: `firestore.indexes.json` predefines likely composite indexes;
   Firestore also prints an index-creation link the first time a query needs one.
 - **Seeding**: `FirestoreDemoSeeder.seedIfMissing()` (in `core/database/seed/`) is
   idempotent and **never auto-runs** — call it manually; it skips docs that exist.
+
+---
+
+## Shared Authentication & Role-Based Access
+
+Shared foundation feature. Firebase **Email/Password** authentication identifies
+the user; the **Cloud Firestore** `users/{uid}` document supplies the WildGuard
+profile and role. There is **no public sign-up** — accounts are provisioned by
+administrators.
+
+### How it works
+
+```
+Splash / session restore
+  → check Firebase auth state
+    → not signed in ............ Login (email + password)
+    → signed in + valid profile  role dashboard (via AccessPolicy)
+    → signed in + bad profile .. Account Issue (retry / sign out)
+```
+
+- **Identity vs profile** are separated: `AuthService` (`features/auth/data/`)
+  wraps `firebase_auth`; `UserRepository` loads/validates `users/{uid}` from
+  Firestore. Neither leaks Firebase types to the UI.
+- **State** lives in `AuthController` (`features/auth/application/`), a Riverpod
+  `Notifier<AuthSession>` exposing `AuthInitial / AuthUnauthenticated /
+  AuthLoadingProfile / Authenticated / AuthProfileError`. Firebase error codes
+  are mapped to friendly messages (`AuthFailure`) — raw exceptions are never shown.
+- **Routing** is centralised: `go_router`'s `redirect` guard reads the session +
+  `AccessPolicy` (`features/auth/domain/access_policy.dart`) — the single,
+  testable source of role → dashboard and role → allowed-route rules. Role checks
+  are never scattered through widgets.
+- **Offline/demo mode**: when Firebase is not configured, the app runs with the
+  existing demo session (so UC01 and the test suite work without a live backend).
+
+### Supported roles
+
+| Role (`users.role`)        | Display label               | Lands on            |
+|----------------------------|-----------------------------|---------------------|
+| `parkManager`              | Park Manager                | `/manager`          |
+| `ranger`                   | Ranger                      | `/ranger`           |
+| `communityLiaisonOfficer`  | Community Liaison Officer    | `/clo`              |
+| `conservationResearcher`   | Conservation Researcher     | `/researcher`       |
+
+Access matrix (enforced by `AccessPolicy` + the router guard):
+
+| Route / module        | Manager | Ranger | CLO | Researcher |
+|-----------------------|:-------:|:------:|:---:|:----------:|
+| Assign Patrol (UC01)  | ✅ | ❌ | ❌ | ❌ |
+| My Patrols (UC01)     | ✅ | ✅ | ❌ | ❌ |
+| Incident Review (UC02)| ✅ | ✅ | ❌ | ❌ |
+| Conflict Response (UC03)| ✅ | ✅ | ✅ | ❌ |
+| Reports (UC04)        | ✅ | ❌ | ❌ | ✅ |
+
+### Firestore user document
+
+`users/{firebaseUid}` — the document **id must equal the Firebase Auth UID**
+(never the email):
+
+```json
+{
+  "id": "<firebase-auth-uid>",
+  "name": "K. Perera",
+  "email": "ranger1@wildguard.lk",
+  "role": "ranger",
+  "parkId": "minneriya",
+  "isAvailable": true,
+  "isActive": true
+}
+```
+
+`isActive: false`, an unsupported `role`, a missing document, or missing
+`name`/`parkId` all route the user to the **Account Issue** screen instead of a
+dashboard.
+
+### Demo accounts (create manually)
+
+| Email                    | Role                      |
+|--------------------------|---------------------------|
+| manager@wildguard.lk     | parkManager               |
+| ranger1@wildguard.lk     | ranger                    |
+| ranger2@wildguard.lk     | ranger                    |
+| clo@wildguard.lk         | communityLiaisonOfficer   |
+| researcher@wildguard.lk  | conservationResearcher    |
+
+Passwords are **not** stored in source and users are **not** created from the app.
+
+### Firebase Console steps (manual)
+
+1. **Authentication → Sign-in method → Email/Password → Enable.**
+2. Create each demo user (Authentication → Users → Add user) and copy its **UID**.
+3. For each, create `users/{uid}` with the fields above (id = that UID).
+4. If `lib/firebase_options.dart` is missing, run `flutterfire configure` and pass
+   the options in `main.dart` (`bootstrapFirebase(optionsOverride: …)`) — required
+   for **web**. Native Android/iOS use `google-services.json` /
+   `GoogleService-Info.plist`.
+5. Deploy rules: `firebase deploy --only firestore:rules`.
+
+### Tests
+
+- `test/auth/access_policy_test.dart` — role → dashboard + access-matrix guards.
+- `test/auth/auth_controller_test.dart` — login, invalid/network/disabled/missing
+  profile/unsupported role, logout, password reset, auth-state changes, profile
+  validation, error mapping (fakes; no live Firebase).
+- `test/auth/auth_widgets_test.dart` — splash, login form + validation + password
+  toggle + loading + error, forgot-password, access-denied, profile, logout dialog.
 
 ---
 
