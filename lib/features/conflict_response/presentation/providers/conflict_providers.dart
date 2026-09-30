@@ -9,10 +9,11 @@ import '../../../../shared/models/response_assignment.dart';
 import '../../../../shared/models/risk_zone.dart';
 import '../../../../shared/models/tracked_animal.dart';
 import '../../../../shared/models/wildlife_risk_alert.dart';
+import '../../../../shared/providers/providers.dart';
 import '../../../../shared/repositories/conflict_repository.dart';
-import '../../../../shared/session/current_user.dart';
 import '../../data/notification/simulated_notification_service.dart';
 import '../../data/repositories/firestore_conflict_repository.dart';
+import '../../data/repositories/in_memory_conflict_repository.dart';
 import '../../domain/notification_service.dart';
 
 /// Simulated notification service (swap for an FCM-backed one when available).
@@ -20,12 +21,18 @@ final notificationServiceProvider = Provider<NotificationService>(
   (_) => SimulatedNotificationService(),
 );
 
-/// Uses Firestore for UC03 by default. 
+/// UC03 repository. Uses Firestore when Firebase is configured/initialized;
+/// otherwise falls back to the in-memory repository so the UC03 flow stays
+/// demonstrable (and tests stay green) without Firebase — mirroring the
+/// [storageServiceProvider]/[remoteWriterProvider] fallback pattern.
 final conflictRepositoryProvider = Provider<ConflictRepository>((ref) {
-  return FirestoreConflictRepository(
-    firestore: FirebaseFirestore.instance,
-    notificationService: ref.watch(notificationServiceProvider),
-  );
+  final notifications = ref.watch(notificationServiceProvider);
+  return ref.watch(firebaseReadyProvider)
+      ? FirestoreConflictRepository(
+          firestore: FirebaseFirestore.instance,
+          notificationService: notifications,
+        )
+      : InMemoryConflictRepository(notificationService: notifications);
 });
 
 // --- Read providers ---------------------------------------------------------

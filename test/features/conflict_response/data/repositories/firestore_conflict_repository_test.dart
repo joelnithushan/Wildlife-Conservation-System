@@ -1,94 +1,86 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mocktail/mocktail.dart';
 import 'package:wildlife_conservation_system/core/enums/app_enums.dart';
-import 'package:wildlife_conservation_system/features/conflict_response/data/repositories/firestore_conflict_repository.dart';
-import 'package:wildlife_conservation_system/features/conflict_response/domain/notification_service.dart';
+import 'package:wildlife_conservation_system/features/conflict_response/data/repositories/in_memory_conflict_repository.dart';
+import 'package:wildlife_conservation_system/features/conflict_response/presentation/providers/conflict_providers.dart';
 import 'package:wildlife_conservation_system/shared/models/community_report.dart';
 import 'package:wildlife_conservation_system/shared/models/location_reading.dart';
 import 'package:wildlife_conservation_system/shared/models/response_assignment.dart';
 import 'package:wildlife_conservation_system/shared/models/wildlife_risk_alert.dart';
-import 'package:wildlife_conservation_system/features/conflict_response/presentation/providers/conflict_providers.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-class MockFirestore extends Mock implements FirebaseFirestore {}
-class MockCollectionReference extends Mock implements CollectionReference<Map<String, dynamic>> {}
-class MockDocumentReference extends Mock implements DocumentReference<Map<String, dynamic>> {}
-class MockQuerySnapshot extends Mock implements QuerySnapshot<Map<String, dynamic>> {}
-class MockNotificationService extends Mock implements NotificationService {}
-class MockTransaction extends Mock implements Transaction {}
-class MockDocumentSnapshot extends Mock implements DocumentSnapshot<Map<String, dynamic>> {}
-class MockQuery extends Mock implements Query<Map<String, dynamic>> {}
 
 void main() {
-  setUpAll(() {
-    registerFallbackValue(SetOptions(merge: true));
-  });
+  // Dates round-trip through wire as UTC (dateToWire/dateFromWire), so tests use
+  // UTC instants to keep value-equality deterministic across serialization.
+  final ts = DateTime.utc(2026, 9, 30, 12, 0, 0);
 
-  group('UC03 Persistence Tests', () {
-    test('1. LocationReading serialized correctly', () {
-      final now = DateTime.now();
+  group('UC03 persistence serialization', () {
+    test('1. LocationReading round-trips with stable id', () {
       final reading = LocationReading.create(
         animalId: 'a1',
         latitude: 10.0,
         longitude: 20.0,
-        observedAt: now,
-        receivedAt: now,
+        observedAt: ts,
+        receivedAt: ts,
       );
       final map = reading.toMap();
       expect(map['id'], reading.id);
       expect(map['animalId'], 'a1');
-      
-      final restored = LocationReading.fromMap(map);
-      expect(restored, reading);
+      expect(LocationReading.fromMap(map), reading);
     });
 
-    test('2. CommunityReport persisted with stable ID and serializes', () {
-      final now = DateTime.now();
+    test('2. CommunityReport round-trips with stable id', () {
       final report = CommunityReport.create(
         parkId: 'p1',
         description: 'test',
         latitude: 10.0,
         longitude: 20.0,
-        createdAt: now,
+        createdAt: ts,
       );
-      final map = report.toMap();
-      final restored = CommunityReport.fromMap(map);
+      final restored = CommunityReport.fromMap(report.toMap());
       expect(restored.id, report.id);
       expect(restored, report);
     });
 
-    test('4. new WildlifeRiskAlert persisted serializes', () {
-      final now = DateTime.now();
+    test('4. WildlifeRiskAlert round-trips', () {
       final alert = WildlifeRiskAlert.create(
         parkId: 'p1',
         source: AlertSource.collar,
         latitude: 1.0,
         longitude: 1.0,
         severity: AlertSeverity.high,
-        createdAt: now,
+        createdAt: ts,
       );
-      final map = alert.toMap();
-      expect(WildlifeRiskAlert.fromMap(map), alert);
+      expect(WildlifeRiskAlert.fromMap(alert.toMap()), alert);
     });
 
-    test('6. ResponseAssignment persisted serializes', () {
-      final now = DateTime.now();
+    test('6. ResponseAssignment round-trips', () {
       final assignment = ResponseAssignment.create(
         alertId: 'al1',
         responderId: 'r1',
         responderRole: ResponderRole.ranger,
         assignedBy: 'm1',
-        assignedAt: now,
+        assignedAt: ts,
       );
-      final map = assignment.toMap();
-      expect(ResponseAssignment.fromMap(map), assignment);
+      expect(ResponseAssignment.fromMap(assignment.toMap()), assignment);
     });
-    
-    test('14. production provider selects Firestore implementation', () {
+  });
+
+  group('UC03 repository wiring', () {
+    test('14. falls back to in-memory repository when Firebase not ready', () {
+      // firebaseReadyProvider defaults to false — the provider must not touch
+      // FirebaseFirestore.instance and must return the in-memory fallback so the
+      // UC03 flow stays demonstrable without Firebase.
       final container = ProviderContainer();
+      addTearDown(container.dispose);
       final repo = container.read(conflictRepositoryProvider);
-      expect(repo, isA<FirestoreConflictRepository>());
+      expect(repo, isA<InMemoryConflictRepository>());
+    });
+
+    test('15. in-memory fallback repository is usable and seeds demo alerts',
+        () async {
+      final repo = InMemoryConflictRepository();
+      final alerts = await repo.getAlerts('PARK-MIN');
+      expect(alerts, isNotEmpty);
     });
   });
 }

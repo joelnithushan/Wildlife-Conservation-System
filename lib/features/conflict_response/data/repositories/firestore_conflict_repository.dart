@@ -185,13 +185,18 @@ class FirestoreConflictRepository implements ConflictRepository {
 
   @override
   Future<List<AppUser>> getAvailableResponders(String parkId) async {
+    // `isResponder` is a role-derived getter on AppUser, not a stored field, so
+    // it can't be queried directly. Filter by the stored fields (parkId +
+    // isAvailable) and apply the responder-role predicate client-side.
     final snap = await _firestore
         .collection(FirestoreCollections.users)
         .where('parkId', isEqualTo: parkId)
-        .where('isResponder', isEqualTo: true)
         .where('isAvailable', isEqualTo: true)
         .get();
-    return snap.docs.map((d) => AppUser.fromMap(d.data())).toList();
+    return snap.docs
+        .map((d) => AppUser.fromMap(d.data()))
+        .where((u) => u.isResponder)
+        .toList();
   }
 
   @override
