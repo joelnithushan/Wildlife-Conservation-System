@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 import '../../../../shared/models/app_user.dart';
 import '../../../../shared/models/community_report.dart';
 import '../../../../shared/models/location_reading.dart';
@@ -10,7 +12,7 @@ import '../../../../shared/models/wildlife_risk_alert.dart';
 import '../../../../shared/repositories/conflict_repository.dart';
 import '../../../../shared/session/current_user.dart';
 import '../../data/notification/simulated_notification_service.dart';
-import '../../data/repositories/in_memory_conflict_repository.dart';
+import '../../data/repositories/firestore_conflict_repository.dart';
 import '../../domain/notification_service.dart';
 
 /// Simulated notification service (swap for an FCM-backed one when available).
@@ -18,10 +20,10 @@ final notificationServiceProvider = Provider<NotificationService>(
   (_) => SimulatedNotificationService(),
 );
 
-/// Single offline-first conflict repository for the whole feature. Cached for
-/// the app's lifetime so in-memory alert/assignment state survives navigation.
+/// Uses Firestore for UC03 by default. 
 final conflictRepositoryProvider = Provider<ConflictRepository>((ref) {
-  return InMemoryConflictRepository(
+  return FirestoreConflictRepository(
+    firestore: FirebaseFirestore.instance,
     notificationService: ref.watch(notificationServiceProvider),
   );
 });
