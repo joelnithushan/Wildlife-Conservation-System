@@ -1,0 +1,502 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../core/database/app_database.dart';
+import '../../../../core/enums/app_enums.dart';
+import '../../../../core/errors/exceptions.dart';
+import '../../../../core/services/connectivity_service.dart';
+import '../../../../core/sync/sync_service.dart';
+import '../../../../core/utils/id_generator.dart';
+import '../../../../shared/models/incident_report.dart';
+import '../../../../shared/providers/providers.dart';
+import '../../../../shared/repositories/incident_repository.dart';
+import '../../data/datasources/incident_evidence_source.dart';
+import '../../data/datasources/incident_local_data_source.dart';
+import '../../data/repositories/incident_repository_impl.dart';
+import '../../domain/incident_categories.dart';
+import 'evidence_providers.dart';
+
+// Re-export the shared providers UC02 screens/tests need, so callers can use a
+// single import (mirrors the patrol feature's re-export pattern).
+export '../../../../shared/providers/providers.dart'
+    show
+        locationServiceProvider,
+        connectivityServiceProvider,
+        storageServiceProvider,
+        remoteWriterProvider,
+        syncServiceProvider;
+
+// ---------------------------------------------------------------------------
+// Infrastructure (feature-local providers over shared abstractions)
+// ---------------------------------------------------------------------------
+
+final incidentLocalDataSourceProvider = Provider<IncidentLocalDataSource>(
+  (ref) => IncidentLocalDataSource(ref.watch(appDatabaseProvider)),
+);
+
+final incidentRepositoryProvider = Provider<IncidentRepository>(
+  (ref) => IncidentRepositoryImpl(ref.watch(incidentLocalDataSourceProvider)),
+);
+
+// ---------------------------------------------------------------------------
+// Ranger form (UC02-S01, screens 1–4)
+// ---------------------------------------------------------------------------
+
+/// Where the form's photo evidence currently stands.
+class IncidentEvidenceState {
+  const IncidentEvidenceState(
+      {this.localPath, this.evidence, this.omissionReason});
+
+  final String? localPath;
+  final CapturedEvidence? evidence;
+  final String? omissionReason;
+
+  bool get hasPhoto => localPath != null && localPath!.trim().isNotEmpty;
+  bool get hasOmissionReason =>
+      omissionReason != null && omissionReason!.trim().isNotEmpty;
+
+  /// The business rule: a photo OR a non-empty omission reason — never both
+  /// required, never neither allowed.
+  bool get isValid => hasPhoto || hasOmissionReason;
+}
+
+/// Full draft state for the new-incident wizard. Plain immutable state kept in
+/// one controller so back/forward navigation never loses the ranger's input.
+class IncidentFormState {
+  const IncidentFormState({
+    this.category,
+    this.evidence = const IncidentEvidenceState(),
+    this.latitude,
+    this.longitude,
+    this.locationSource,
+    this.gpsError,
+    this.isLocating = false,
+    this.observedAt,
+    this.description = '',
+  });
+
+  final IncidentReportCategory? category;
+  final IncidentEvidenceState evidence;
+  final double? latitude;
+  final double? longitude;
+
+  /// gps | manual — never fabricated; null until a fix or a manual pick.
+  final LocationSource? locationSource;
+  final String? gpsError;
+  final bool isLocating;
+  final DateTime? observedAt;
+  final String description;
+
+  bool get hasLocation => latitude != null && longitude != null;
+  bool get hasDescription => description.trim().isNotEmpty;
+
+  /// Per-step readiness used by the wizard's Next buttons and review screen.
+  bool get categoryValid => category != null;
+  bool get evidenceValid => evidence.isValid;
+  bool get locationValid => hasLocation;
+  bool get descriptionValid => hasDescription;
+  bool get readyToSubmit =>
+      categoryValid && evidenceValid && locationValid && descriptionValid;
+
+  IncidentFormState copyWith({
+    IncidentReportCategory? category,
+    IncidentEvidenceState? evidence,
+    double? latitude,
+    double? longitude,
+    LocationSource? locationSource,
+    String? gpsError,
+    bool clearGpsError = false,
+    bool? isLocating,
+    DateTime? observedAt,
+    String? description,
+  }) =>
+      IncidentFormState(
+        category: category ?? this.category,
+        evidence: evidence ?? this.evidence,
+        latitude: latitude ?? this.latitude,
+        longitude: longitude ?? this.longitude,
+        locationSource: locationSource ?? this.locationSource,
+        gpsError: clearGpsError ? null : (gpsError ?? this.gpsError),
+        isLocating: isLocating ?? this.isLocating,
+        observedAt: observedAt ?? this.observedAt,
+        description: description ?? this.description,
+      );
+}
+
+/// Drives the new-incident wizard (UC02-S01).
+class IncidentFormController extends Notifier<IncidentFormState> {
+  @override
+  IncidentFormState build() => IncidentFormState(observedAt: DateTime.now());
+
+  void selectCategory(IncidentReportCategory category) =>
+      state = state.copyWith(category: category);
+
+  /// Keep at most one of photo / omission reason (they are alternatives).
+  void setOmissionReason(String reason) => state = state.copyWith(
+        evidence: IncidentEvidenceState(
+          omissionReason: reason.trim().isEmpty ? null : reason.trim(),
+        ),
+      );
+
+  void setEvidence(CapturedEvidence evidence) => state = state.copyWith(
+        evidence: IncidentEvidenceState(
+          localPath: evidence.localPath,
+          evidence: evidence,
+        ),
+      );
+
+  void clearEvidence() =>
+      state = state.copyWith(evidence: const IncidentEvidenceState());
+
+  void setObservationTime(DateTime when) =>
+      state = state.copyWith(observedAt: when);
+
+  void setDescription(String text) => state = state.copyWith(description: text);
+
+  /// Attempts a GPS fix. Never fabricates coordinates: on any failure it
+  /// records a friendly message and leaves manual map entry available.
+  Future<void> captureGpsLocation() async {
+    state = state.copyWith(isLocating: true, clearGpsError: true);
+    final location = ref.read(locationServiceProvider);
+    try {
+      final pos = await location.getCurrentPosition();
+      state = state.copyWith(
+        latitude: pos.latitude,
+        longitude: pos.longitude,
+        locationSource: LocationSource.gps,
+        isLocating: false,
+        clearGpsError: true,
+      );
+    } on PermissionException catch (e) {
+      state = state.copyWith(
+        isLocating: false,
+        gpsError: e.message.toLowerCase().contains('permanently')
+            ? 'Location permission permanently denied. Set the location manually.'
+            : 'Location permission not granted. Set the location manually.',
+      );
+    } catch (_) {
+      state = state.copyWith(
+        isLocating: false,
+        gpsError: 'No GPS fix. Retry or set the location manually.',
+      );
+    }
+  }
+
+  /// Manual fallback from the cached map view.
+  void setManualLocation(double latitude, double longitude) => state =
+      state.copyWith(
+          latitude: latitude,
+          longitude: longitude,
+          locationSource: LocationSource.manual,
+          isLocating: false,
+          clearGpsError: true);
+
+  /// Clears everything after a successful submission.
+  void reset() => state = IncidentFormState(observedAt: DateTime.now());
+}
+
+final incidentFormControllerProvider =
+    NotifierProvider<IncidentFormController, IncidentFormState>(
+  IncidentFormController.new,
+);
+
+// ---------------------------------------------------------------------------
+// Submission (UC02-S01, screens 5–6)
+// ---------------------------------------------------------------------------
+
+enum SubmissionPhase { idle, submitting, savedOffline, synchronized, failed }
+
+/// Outcome of submitting one incident report.
+class IncidentSubmissionState {
+  const IncidentSubmissionState({
+    this.status = SubmissionPhase.idle,
+    this.reportId,
+    this.report,
+    this.message,
+  });
+
+  final SubmissionPhase status;
+  final String? reportId;
+  final IncidentReport? report;
+  final String? message;
+
+  /// Human-readable reference, e.g. `IR-a1b2c3d4`.
+  String? get reference =>
+      reportId == null ? null : 'IR-${reportId!.split('_').last}';
+}
+
+class IncidentSubmissionController extends Notifier<IncidentSubmissionState> {
+  @override
+  IncidentSubmissionState build() => const IncidentSubmissionState();
+
+  Future<bool> submit() async {
+    final form = ref.read(incidentFormControllerProvider);
+    final user = ref.read(currentUserProvider);
+
+    // Guard: validate before doing anything so invalid data never submits.
+    if (!form.readyToSubmit) {
+      state = const IncidentSubmissionState(
+        status: SubmissionPhase.failed,
+        message: 'Missing required details. Review the report and try again.',
+      );
+      return false;
+    }
+
+    state = const IncidentSubmissionState(status: SubmissionPhase.submitting);
+
+    // Capture all dependencies up-front: after the first await the autoDispose
+    // provider may already be disposed (fast navigation), so `ref` must not be
+    // touched inside the async tail.
+    final repository = ref.read(incidentRepositoryProvider);
+    final connectivity = ref.read(connectivityServiceProvider);
+    final evidenceRepository = ref.read(incidentEvidenceRepositoryProvider);
+    final syncService = ref.read(syncServiceProvider);
+
+    // Stable client-generated ID: a retry reuses the SAME id (no duplicates).
+    final reportId = IdGenerator.newId('incident');
+    final report = IncidentReport(
+      id: reportId,
+      rangerId: user.id,
+      parkId: user.parkId,
+      category: form.category!.shared,
+      description: form.description.trim(),
+      observedAt: form.observedAt ?? DateTime.now(),
+      latitude: form.latitude!,
+      longitude: form.longitude!,
+      locationSource: form.locationSource!,
+      localPhotoPath: form.evidence.localPath,
+      evidenceOmissionReason: form.evidence.omissionReason,
+      submissionStatus: SubmissionStatus.submitted,
+      reviewStatus: ReviewStatus.pendingReview,
+      syncState: SyncState.pending,
+      createdAt: DateTime.now(),
+    );
+
+    try {
+      // 1) Local save first (offline-first). Only a SUCCESSFUL save may be
+      //    reported to the ranger as safe — never a false "pending".
+      await repository.createIncident(report);
+    } on LocalStorageException catch (e) {
+      // Local save failed — do NOT tell the ranger the report is safe.
+      state = IncidentSubmissionState(
+        status: SubmissionPhase.failed,
+        reportId: reportId,
+        message: 'Not saved – retry. ${e.message}',
+      );
+      return false;
+    } on ValidationException catch (e) {
+      state = IncidentSubmissionState(
+        status: SubmissionPhase.failed,
+        reportId: reportId,
+        message: e.message,
+      );
+      return false;
+    } catch (e) {
+      state = IncidentSubmissionState(
+        status: SubmissionPhase.failed,
+        reportId: reportId,
+        message: 'Not saved – retry. $e',
+      );
+      return false;
+    }
+
+    // 2) Attempt online submission + evidence upload right away.
+    final synced = await _trySync(
+      report,
+      form.evidence.evidence,
+      connectivity: connectivity,
+      evidenceRepository: evidenceRepository,
+      syncService: syncService,
+    );
+    state = IncidentSubmissionState(
+      status:
+          synced ? SubmissionPhase.synchronized : SubmissionPhase.savedOffline,
+      reportId: reportId,
+      report: report,
+      message: synced
+          ? null
+          : 'Offline – report saved on this device. It will synchronize '
+              'automatically when the signal returns.',
+    );
+    if (ref.mounted) ref.invalidate(pendingIncidentsProvider);
+    return true;
+  }
+
+  /// Best-effort immediate sync attempt; returns true when fully synchronized.
+  /// Dependencies are passed in so no `ref` access happens after an async gap.
+  Future<bool> _trySync(
+    IncidentReport report,
+    CapturedEvidence? evidence, {
+    required ConnectivityService connectivity,
+    required IncidentEvidenceRepository evidenceRepository,
+    required SyncService syncService,
+  }) async {
+    try {
+      if (!await connectivity.isOnline()) return false;
+
+      // Upload evidence (if any) before/with the record. Idempotent by
+      // filename, so an interrupted upload can be retried safely.
+      if (evidence != null) {
+        await evidenceRepository.uploadEvidence(
+          incidentId: report.id,
+          evidence: evidence,
+        );
+      }
+      final summary = await syncService.syncPendingIncidentData();
+      return !summary.hasFailures;
+    } catch (_) {
+      return false; // stay pending; the sync engine retries later
+    }
+  }
+
+  /// Manual "Retry sync now" from the result screen. Idempotent: re-upserts
+  /// the same stable ID and never duplicates the incident or the attachment.
+  Future<void> retrySync(String reportId) async {
+    state = IncidentSubmissionState(
+        status: SubmissionPhase.submitting, reportId: reportId);
+
+    final repository = ref.read(incidentRepositoryProvider);
+    final connectivity = ref.read(connectivityServiceProvider);
+    final syncService = ref.read(syncServiceProvider);
+
+    // Still offline? Keep the report pending — nothing is duplicated.
+    if (!await connectivity.isOnline()) {
+      IncidentReport? local;
+      try {
+        local = await repository.getIncident(reportId);
+      } catch (_) {
+        local = null;
+      }
+      state = IncidentSubmissionState(
+        status: local == null ? SubmissionPhase.failed : SubmissionPhase.savedOffline,
+        reportId: reportId,
+        report: local,
+        message: 'Still offline. The report stays saved on this device and '
+            'will synchronize when the signal returns.',
+      );
+      return;
+    }
+
+    SyncSummary summary;
+    try {
+      summary = await syncService.syncPendingIncidentData();
+    } catch (_) {
+      summary = const SyncSummary(pushed: 0, failed: 1);
+    }
+    IncidentReport? report;
+    try {
+      report = await repository.getIncident(reportId);
+    } catch (_) {
+      report = null;
+    }
+    final ok = !summary.hasFailures && report != null;
+    state = IncidentSubmissionState(
+      status: ok ? SubmissionPhase.synchronized : SubmissionPhase.failed,
+      reportId: reportId,
+      report: report,
+      message: ok
+          ? null
+          : 'Synchronization failed. The report stays saved on this device '
+              'and will retry automatically.',
+    );
+    if (ref.mounted) ref.invalidate(pendingIncidentsProvider);
+  }
+}
+
+final incidentSubmissionProvider =
+    NotifierProvider.autoDispose<IncidentSubmissionController,
+        IncidentSubmissionState>(IncidentSubmissionController.new);
+
+// ---------------------------------------------------------------------------
+// Ranger: my pending (offline-saved) incidents
+// ---------------------------------------------------------------------------
+
+/// The current ranger's reports that are still awaiting synchronization.
+final pendingIncidentsProvider =
+    FutureProvider.autoDispose<List<IncidentReport>>((ref) async {
+  final user = ref.watch(currentUserProvider);
+  return ref
+      .watch(incidentLocalDataSourceProvider)
+      .getPendingIncidents(rangerId: user.id);
+});
+
+// ---------------------------------------------------------------------------
+// Park Manager: review queue (UC02-S02) — synchronized reports only
+// ---------------------------------------------------------------------------
+
+/// Synchronized reports for the manager's park, filtered by review status.
+///
+/// ONLY synchronized reports are surfaced (business rule): pending/failed
+/// local-only ranger records have not reached the backend, so reviewers must
+/// not act on them.
+final incidentReviewQueueProvider = FutureProvider.autoDispose
+    .family<List<IncidentReport>, ReviewStatus>((ref, filter) async {
+  final user = ref.watch(currentUserProvider);
+  final all =
+      await ref.watch(incidentRepositoryProvider).getIncidentsForReview(user.parkId);
+  return all.where((r) => r.reviewStatus == filter).toList();
+});
+
+// ---------------------------------------------------------------------------
+// Park Manager: single report + save review (screen 8)
+// ---------------------------------------------------------------------------
+
+/// A single incident for the reviewer screen.
+final selectedIncidentProvider =
+    FutureProvider.autoDispose.family<IncidentReport?, String>((ref, id) {
+  return ref.watch(incidentRepositoryProvider).getIncident(id);
+});
+
+/// Result of a review save attempt.
+class ReviewSaveState {
+  const ReviewSaveState({this.saving = false, this.saved = false, this.error});
+
+  final bool saving;
+  final bool saved;
+  final String? error;
+}
+
+/// Saves a review decision for one report (family arg = report id). Only
+/// authorized reviewers may pass; failures retain the previous status.
+class ReviewSaveController extends Notifier<ReviewSaveState> {
+  ReviewSaveController(this.reportId);
+
+  final String reportId;
+
+  @override
+  ReviewSaveState build() => const ReviewSaveState();
+
+  Future<void> save({
+    required ReviewStatus status,
+    String? reviewNotes,
+  }) async {
+    final user = ref.read(currentUserProvider);
+    if (user.role != UserRole.parkManager) {
+      // Authorization rule: only authorized reviewers may update status.
+      state = const ReviewSaveState(
+          error: 'You are not authorized to review incident reports.');
+      return;
+    }
+    state = const ReviewSaveState(saving: true);
+    try {
+      await ref.read(incidentRepositoryProvider).updateReviewStatus(
+            id: reportId,
+            status: status,
+            reviewerId: user.id,
+            reviewNotes: reviewNotes,
+          );
+      state = const ReviewSaveState(saved: true);
+    } catch (e) {
+      // Failure keeps the previous status; the reviewer can retry.
+      state = ReviewSaveState(error: 'Could not save the review. $e');
+    }
+    ref.invalidate(incidentReviewQueueProvider);
+    ref.invalidate(selectedIncidentProvider(reportId));
+  }
+}
+
+final reviewSaveProvider = NotifierProvider.autoDispose
+    .family<ReviewSaveController, ReviewSaveState, String>(
+  (reportId) => ReviewSaveController(reportId),
+);
+
+

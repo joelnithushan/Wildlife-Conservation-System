@@ -1,19 +1,21 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/database/app_database.dart';
-import '../../../../core/sync/drift_local_sync_store.dart';
-import '../../../../core/sync/remote_writers.dart';
-import '../../../../core/sync/sync_service.dart';
 import '../../../../shared/models/patrol.dart';
 import '../../../../shared/models/patrol_position.dart';
 import '../../../../shared/models/patrol_route.dart';
 import '../../../../shared/providers/providers.dart';
 import '../../../../shared/repositories/patrol_repository.dart';
-import '../../../../shared/services/geolocator_location_service.dart';
-import '../../../../shared/services/location_service.dart';
 import '../../../../shared/demo/demo_data.dart';
 import '../../data/datasources/patrol_local_data_source.dart';
 import '../../data/repositories/patrol_repository_impl.dart';
+
+// locationServiceProvider, remoteWriterProvider, syncServiceProvider and the
+// local sync store were moved to `shared/providers/providers.dart` so features
+// other than patrol (UC02) can reuse them without cross-feature imports.
+// Re-exported here so all existing patrol call sites keep working.
+export '../../../../shared/providers/providers.dart'
+    show locationServiceProvider, remoteWriterProvider, syncServiceProvider;
 
 /// All patrol routes available for assignment (demo seed).
 final patrolRoutesProvider = Provider<List<PatrolRoute>>((_) => DemoData.routes);
@@ -41,32 +43,7 @@ final patrolRepositoryProvider = Provider<PatrolRepository>(
   ),
 );
 
-final locationServiceProvider = Provider<LocationService>(
-  (_) => const GeolocatorLocationService(),
-);
-
-/// Remote writer for sync. Uses [FirestoreRemoteWriter] when Firebase is
-/// configured/initialized; otherwise an in-memory writer so the app still runs
-/// and the sync flow is demonstrable without Firebase. Both are idempotent
-/// (upsert keyed by the record's stable ID → retries never duplicate).
-final remoteWriterProvider = Provider<RemoteWriter>((ref) {
-  return ref.watch(firebaseReadyProvider)
-      ? FirestoreRemoteWriter()
-      : InMemoryRemoteWriter();
-});
-
-final _localSyncStoreProvider = Provider<LocalSyncStore>(
-  (ref) => DriftLocalSyncStore(ref.watch(appDatabaseProvider)),
-);
-
-final syncServiceProvider = Provider<SyncService>((ref) {
-  final service = DefaultSyncService(
-    store: ref.watch(_localSyncStoreProvider),
-    remote: ref.watch(remoteWriterProvider),
-  );
-  ref.onDispose(service.dispose);
-  return service;
-});
+/// Remote writer for sync lives in `shared/providers/providers.dart` now.
 
 /// Patrols assigned to the current ranger (or a given ranger id).
 final assignedPatrolsProvider =
