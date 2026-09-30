@@ -314,6 +314,50 @@ flutter test test/patrol      # UC01 unit + widget tests
 flutter test                  # whole suite
 ```
 
+## UC02 – Record and Review Wildlife Incidents
+
+Two scenarios under one use case: **UC02-S01 Record Wildlife Incident** (Ranger)
+and **UC02-S02 Review Wildlife Incident** (Park Manager / authorised reviewer).
+
+**Supported incident types.** The wizard offers Snare, Carcass, Illegal campsite,
+Suspicious footprints and Other. Each maps onto the shared `IncidentCategory`
+enum (`poaching`, `animalInjury`, `illegalLogging`, `humanWildlifeConflict`,
+`other`) — category logic is centralised in
+`features/incidents/domain/incident_categories.dart`, never hardcoded in screens.
+
+**Evidence rule.** A report must carry a photo **or** a non-empty
+"Reason for no photo" (the "Can't take a photo safely?" path) — never neither,
+never both. The repository enforces this before any write.
+
+**Location.** The normal path stores the current GPS fix (`locationSource = gps`).
+If GPS is unavailable the ranger can retry or set the location manually on the
+cached map view (`locationSource = manual`). Coordinates are never fabricated.
+
+**Offline reporting.** Submitting always writes to Drift first with a stable
+client ID (`incident_<id>`, reference `IR-<id>`) and `submissionStatus =
+submitted`, `reviewStatus = pendingReview`. Online → evidence is uploaded and the
+report synchronizes immediately. Offline → the result screen shows
+"Offline – report saved on this device" with sync = Pending and a "Retry sync now"
+action. A failed local save shows "Not saved – retry" — the ranger is never told
+a report is safe when it is not.
+
+**Synchronization.** The shared `SyncService` upserts reports and evidence by
+their stable IDs — retry-safe and idempotent, so retries never duplicate an
+incident or an attachment. `syncState` flips to `synchronized` only after a
+complete acknowledgement; failures stay retryable.
+
+**Reviewer workflow.** Only **synchronized** reports enter the Incident Review
+queue (filtered by Pending review / Under review / Verified / Rejected). The
+reviewer opens a report (photo or omission reason, location + source,
+description), sets Under review / Verified / Rejected with an optional note, and
+the system records the reviewer ID, timestamp, resulting status and note. Failed
+review saves retain the previous status.
+
+**Run UC02 tests:**
+```bash
+flutter test test/incidents   # UC02 unit + widget tests
+```
+
 ## UC04 – Analyze Conservation Data and Generate Reports
 
 Implemented on `feature/uc04-analytics` (UC04-S01, Park Manager and Conservation Researcher).
