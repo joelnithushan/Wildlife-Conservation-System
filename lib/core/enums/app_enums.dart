@@ -95,6 +95,22 @@ extension PatrolStatusTransitions on PatrolStatus {
   }
 }
 
+extension UserRoleX on UserRole {
+  /// Human-readable label for UI (dashboards, profile, pickers).
+  String get displayLabel => switch (this) {
+        UserRole.parkManager => 'Park Manager',
+        UserRole.ranger => 'Ranger',
+        UserRole.communityLiaisonOfficer => 'Community Liaison Officer',
+        UserRole.conservationResearcher => 'Conservation Researcher',
+      };
+}
+
+/// Parse a role coming from a Firestore profile. Returns `null` for missing or
+/// unsupported values so callers can treat the profile as invalid rather than
+/// silently defaulting to a role the account should not have.
+UserRole? parseSupportedRole(Object? raw) =>
+    parseEnumOrNull(UserRole.values, raw);
+
 extension AlertStatusTransitions on AlertStatus {
   /// Allowed lifecycle:
   /// newAlert -> assigned -> acknowledged -> responseInProgress -> resolved.

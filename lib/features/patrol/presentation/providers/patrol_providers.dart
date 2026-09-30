@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/database/app_database.dart';
+import '../../../../core/enums/app_enums.dart';
 import '../../../../core/sync/drift_local_sync_store.dart';
 import '../../../../core/sync/remote_writers.dart';
 import '../../../../core/sync/sync_service.dart';
+import '../../../../shared/models/app_user.dart';
 import '../../../../shared/models/patrol.dart';
 import '../../../../shared/models/patrol_position.dart';
 import '../../../../shared/models/patrol_route.dart';
@@ -25,9 +27,16 @@ PatrolRoute? _routeById(String id) {
   return null;
 }
 
-/// Rangers who can be assigned patrols (available only).
-final availableRangersProvider = Provider((_) =>
-    DemoData.users.where((u) => u.isResponder && u.isAvailable).toList());
+/// Rangers who can be assigned patrols: available **rangers** in the
+/// authenticated user's park only. A Park Manager never sees rangers from
+/// another park, and only rangers (not liaison officers) are assignable.
+final availableRangersProvider = Provider<List<AppUser>>((ref) {
+  final parkId = ref.watch(currentUserProvider).parkId;
+  return DemoData.users
+      .where((u) =>
+          u.role == UserRole.ranger && u.isAvailable && u.parkId == parkId)
+      .toList();
+});
 
 final _localDataSourceProvider = Provider<PatrolLocalDataSource>(
   (ref) => PatrolLocalDataSource(ref.watch(appDatabaseProvider)),
