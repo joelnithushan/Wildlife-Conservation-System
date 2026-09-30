@@ -24,3 +24,25 @@ class OnboardingRepository {
 final onboardingRepositoryProvider = Provider<OnboardingRepository>(
   (_) => const OnboardingRepository(),
 );
+
+/// Synchronously-readable onboarding-completed flag for the router guard.
+///
+/// Seeded in `main()` with the value loaded from [OnboardingRepository] and
+/// flipped to `true` when the onboarding flow finishes. Kept separate from the
+/// async repository so the router `redirect` (which must be synchronous) can read
+/// it without awaiting SharedPreferences.
+class OnboardingCompletedNotifier extends Notifier<bool> {
+  OnboardingCompletedNotifier([this._initial = false]);
+
+  final bool _initial;
+
+  @override
+  bool build() => _initial;
+
+  void complete() => state = true;
+}
+
+final onboardingCompletedProvider =
+    NotifierProvider<OnboardingCompletedNotifier, bool>(
+  OnboardingCompletedNotifier.new,
+);

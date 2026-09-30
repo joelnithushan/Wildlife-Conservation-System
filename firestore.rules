@@ -1,52 +1,79 @@
 rules_version = '2';
 
 // =============================================================================
-// DEVELOPMENT RULES (currently active)
+// WILDGUARD FIRESTORE RULES (authenticated, role-aware)
 // =============================================================================
-// Open access, but with a hard expiry so the database can NEVER be left
-// permanently open by accident. Adjust the date as needed during development.
+// Now that WildGuard uses Firebase Authentication, backend access is gated on a
+// signed-in user whose role lives on their `users/{uid}` document. The client
+// `CurrentUserProvider` is a session convenience only and is NOT a security
+// boundary — these rules are.
 //
-// LIMITATION: real role-based security (Ranger vs Park Manager vs Liaison vs
-// Researcher) CANNOT be enforced from the client `CurrentUserProvider` — that is
-// a demo/session convenience only. Secure rules require Firebase Authentication
-// (see the recommended block below). Do not treat these dev rules as secure.
+// Deploy with:  firebase deploy --only firestore:rules
+//
+// NOTE: role-aware WRITE rules are intentionally conservative here (reference
+// data is manager-only; field data is any signed-in user). Tightening field
+// writes to per-park / per-owner ownership is a further design step — see
+// README "Firestore security". A time-boxed development/emulator block is kept
+// at the bottom (commented) for local work without Auth.
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function hasRole(role) {
+      return isSignedIn() && userDoc().role == role;
+    }
+
+    function isManager() {
+      return hasRole('parkManager');
+    }
+
+    // A user may always read their own profile; managers may read/write any
+    // profile (admin provisioning). Users may update their own profile.
+    match /users/{uid} {
+      allow read: if isSignedIn();
+      allow write: if isManager() || request.auth.uid == uid;
+    }
+
+    // Reference data: any signed-in user reads; only managers write.
+    match /parks/{id}           { allow read: if isSignedIn(); allow write: if isManager(); }
+    match /patrol_routes/{id}   { allow read: if isSignedIn(); allow write: if isManager(); }
+    match /risk_zones/{id}      { allow read: if isSignedIn(); allow write: if isManager(); }
+    match /tracked_animals/{id} { allow read: if isSignedIn(); allow write: if isManager(); }
+
+    // Field data: signed-in users read/write (tighten to per-park ownership as a
+    // follow-up — see README).
+    match /patrols/{id}              { allow read, write: if isSignedIn(); }
+    match /patrol_positions/{id}     { allow read, write: if isSignedIn(); }
+    match /incident_reports/{id}     { allow read, write: if isSignedIn(); }
+    match /wildlife_risk_alerts/{id} { allow read, write: if isSignedIn(); }
+    match /response_assignments/{id} { allow read, write: if isSignedIn(); }
+    match /location_readings/{id}    { allow read, write: if isSignedIn(); }
+    match /community_reports/{id}    { allow read, write: if isSignedIn(); }
+
+    // Default deny for anything not matched above.
     match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2026, 12, 31);
+      allow read, write: if false;
     }
   }
 }
 
 // =============================================================================
-// RECOMMENDED DEMO / FINAL RULES (enable once Firebase Auth is wired up)
+// DEVELOPMENT / EMULATOR RULES (disabled)
 // =============================================================================
-// Replace the block above with the following once each app user signs in with
-// Firebase Auth and their role is stored on their `users/{uid}` document.
+// Open access with a hard expiry so the DB can never be left permanently open.
+// Swap in ONLY for local development without Firebase Auth (e.g. the emulator).
 //
 // service cloud.firestore {
 //   match /databases/{database}/documents {
-//     function isSignedIn() { return request.auth != null; }
-//     function userDoc() {
-//       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+//     match /{document=**} {
+//       allow read, write: if request.time < timestamp.date(2026, 12, 31);
 //     }
-//     function hasRole(role) { return isSignedIn() && userDoc().role == role; }
-//     function isManager() { return hasRole('parkManager'); }
-//
-//     // Reference data: any signed-in user reads; only managers write.
-//     match /parks/{id}        { allow read: if isSignedIn(); allow write: if isManager(); }
-//     match /patrol_routes/{id}{ allow read: if isSignedIn(); allow write: if isManager(); }
-//     match /risk_zones/{id}   { allow read: if isSignedIn(); allow write: if isManager(); }
-//     match /tracked_animals/{id} { allow read: if isSignedIn(); allow write: if isManager(); }
-//     match /users/{uid}       { allow read: if isSignedIn(); allow write: if isManager() || request.auth.uid == uid; }
-//
-//     // Field data: signed-in users read/write within their park (tighten as needed).
-//     match /patrols/{id}          { allow read, write: if isSignedIn(); }
-//     match /patrol_positions/{id} { allow read, write: if isSignedIn(); }
-//     match /incident_reports/{id} { allow read, write: if isSignedIn(); }
-//     match /wildlife_risk_alerts/{id} { allow read, write: if isSignedIn(); }
-//     match /response_assignments/{id} { allow read, write: if isSignedIn(); }
-//     match /location_readings/{id}    { allow read, write: if isSignedIn(); }
-//     match /community_reports/{id}    { allow read: if isSignedIn(); allow write: if isSignedIn(); }
 //   }
 // }

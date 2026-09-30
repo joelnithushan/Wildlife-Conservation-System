@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
 import 'core/services/firebase_bootstrap.dart';
+import 'features/onboarding/presentation/providers/onboarding_providers.dart';
 import 'shared/providers/providers.dart';
 
 void main() async {
@@ -20,10 +21,15 @@ void main() async {
   //   );
   final firebaseReady = await bootstrapFirebase();
 
+  // Load the onboarding flag once so the router guard can read it synchronously.
+  final onboardingDone = await const OnboardingRepository().isCompleted();
+
   runApp(
     ProviderScope(
       overrides: [
         firebaseReadyProvider.overrideWithValue(firebaseReady),
+        onboardingCompletedProvider
+            .overrideWith(() => OnboardingCompletedNotifier(onboardingDone)),
       ],
       child: const WildlifeApp(),
     ),
