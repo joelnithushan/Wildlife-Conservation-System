@@ -58,6 +58,7 @@ dev_dependencies:
   riverpod_generator: ^4.0.9
   drift_dev: ^2.20.3
   mocktail: ^1.0.4
+  crypto: ^3.0.7 # dev-only: tool/hooks_cache_fix.dart (Windows test-runner workaround)
   flutter_launcher_icons: ^0.14.1
 
 flutter:

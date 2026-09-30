@@ -20,7 +20,14 @@ import '../../features/conflict_response/presentation/screens/assign_responder_s
 import '../../features/conflict_response/presentation/screens/conflict_response_screen.dart';
 import '../../features/conflict_response/presentation/screens/responder_assignment_screen.dart';
 import '../../features/conflict_response/presentation/screens/response_tracking_screen.dart';
+import '../../features/incidents/presentation/screens/incident_evidence_screen.dart';
+import '../../features/incidents/presentation/screens/incident_location_screen.dart';
+import '../../features/incidents/presentation/screens/incident_result_screen.dart';
+import '../../features/incidents/presentation/screens/incident_review_detail_screen.dart';
+import '../../features/incidents/presentation/screens/incident_review_queue_screen.dart';
+import '../../features/incidents/presentation/screens/incident_review_screen.dart';
 import '../../features/incidents/presentation/screens/incidents_screen.dart';
+import '../../features/incidents/presentation/screens/new_incident_screen.dart';
 import '../../features/onboarding/presentation/providers/onboarding_providers.dart';
 import '../../features/onboarding/presentation/screens/onboarding_screen.dart';
 import '../../features/onboarding/presentation/screens/splash_screen.dart';
@@ -67,6 +74,18 @@ abstract final class AppRoutes {
   static String activeFor(String id) => '/patrol-active/$id';
   static String waypointFor(String id) => '/patrol-waypoint/$id';
   static String summaryFor(String id) => '/patrol-summary/$id';
+
+  // UC02 incident flow (outside the bottom-nav shell for the wizard).
+  static const newIncident = '/incidents/new';
+  static const incidentEvidence = '/incidents/new/evidence';
+  static const incidentLocation = '/incidents/new/location';
+  static const incidentReview = '/incidents/new/review';
+  static const incidentResult = '/incidents/result/:id';
+  static const incidentReviewQueue = '/incidents/review';
+  static const incidentReviewDetail = '/incidents/review/:id';
+
+  static String incidentResultFor(String id) => '/incidents/result/$id';
+  static String incidentReviewDetailFor(String id) => '/incidents/review/$id';
 
   // UC03 conflict-response flow (outside the bottom-nav shell).
   static const alertDetails = '/alert-details/:id';
@@ -247,6 +266,39 @@ GoRouter appRouter(Ref ref) {
         path: AppRoutes.patrolSummary,
         builder: (context, state) =>
             PatrolSummaryScreen(patrolId: state.pathParameters['id']!),
+      ),
+
+      // UC02 – Record and Review Wildlife Incidents (report wizard).
+      GoRoute(
+        path: AppRoutes.newIncident,
+        builder: (context, state) => const NewIncidentScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.incidentEvidence,
+        builder: (context, state) => const IncidentEvidenceScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.incidentLocation,
+        builder: (context, state) => const IncidentLocationScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.incidentReview,
+        builder: (context, state) => const IncidentReviewScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.incidentResult,
+        builder: (context, state) =>
+            IncidentResultScreen(reportId: state.pathParameters['id']!),
+      ),
+      // UC02 – Park Manager review workflow.
+      GoRoute(
+        path: AppRoutes.incidentReviewQueue,
+        builder: (context, state) => const IncidentReviewQueueScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.incidentReviewDetail,
+        builder: (context, state) => IncidentReviewDetailScreen(
+            reportId: state.pathParameters['id']!),
       ),
 
       // UC03 – Coordinate Wildlife Conflict Response
