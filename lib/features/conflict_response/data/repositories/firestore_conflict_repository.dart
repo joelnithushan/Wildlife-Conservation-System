@@ -124,9 +124,10 @@ class FirestoreConflictRepository implements ConflictRepository {
     final snap = await _firestore
         .collection(FirestoreCollections.wildlifeRiskAlerts)
         .where('parkId', isEqualTo: parkId)
-        .orderBy('createdAt', descending: true)
         .get();
-    return snap.docs.map((d) => WildlifeRiskAlert.fromMap(d.data())).toList();
+    final items = snap.docs.map((d) => WildlifeRiskAlert.fromMap(d.data())).toList();
+    items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return items;
   }
 
   @override
@@ -158,9 +159,10 @@ class FirestoreConflictRepository implements ConflictRepository {
     final snap = await _firestore
         .collection(FirestoreCollections.communityReports)
         .where('parkId', isEqualTo: parkId)
-        .orderBy('createdAt', descending: true)
         .get();
-    return snap.docs.map((d) => CommunityReport.fromMap(d.data())).toList();
+    final items = snap.docs.map((d) => CommunityReport.fromMap(d.data())).toList();
+    items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    return items;
   }
 
   @override
@@ -204,9 +206,10 @@ class FirestoreConflictRepository implements ConflictRepository {
     final snap = await _firestore
         .collection(FirestoreCollections.responseAssignments)
         .where('alertId', isEqualTo: alertId)
-        .orderBy('assignedAt', descending: false)
         .get();
-    return snap.docs.map((d) => ResponseAssignment.fromMap(d.data())).toList();
+    final items = snap.docs.map((d) => ResponseAssignment.fromMap(d.data())).toList();
+    items.sort((a, b) => a.assignedAt.compareTo(b.assignedAt));
+    return items;
   }
 
   @override
