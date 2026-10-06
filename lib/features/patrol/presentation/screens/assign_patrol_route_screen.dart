@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../../core/enums/app_enums.dart';
 import '../../../../core/utils/date_extensions.dart';
@@ -102,7 +103,13 @@ class _AssignPatrolRouteScreenState
     final rangers = ref.watch(availableRangersProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Assign Patrol Route')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.pop(),
+        ),
+        title: const Text('Assign Patrol Route'),
+      ),
       body: rangers.isEmpty
           ? const Center(child: Text('No rangers are currently available.'))
           : LayoutBuilder(
