@@ -7,6 +7,7 @@ import '../../../../core/routing/app_router.dart';
 import '../../../../shared/models/patrol.dart';
 import '../../../../shared/models/patrol_route.dart';
 import '../../../../shared/session/current_user.dart';
+import '../../../auth/domain/access_policy.dart';
 import '../providers/patrol_providers.dart';
 import '../widgets/patrol_card.dart';
 
@@ -25,6 +26,10 @@ class MyPatrolsScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.go(AccessPolicy.homeRoute(user.role)),
+        ),
         title: const Text('My Patrols'),
         actions: [
           _RoleSwitcher(current: user.role),
