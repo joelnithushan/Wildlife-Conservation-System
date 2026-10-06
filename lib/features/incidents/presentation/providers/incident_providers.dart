@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/database/app_database.dart';
 import '../../../../core/enums/app_enums.dart';
 import '../../../../core/errors/exceptions.dart';
-import '../../../../core/services/connectivity_service.dart';
+
 import '../../../../core/sync/sync_service.dart';
 import '../../../../core/utils/id_generator.dart';
 import '../../../../shared/models/incident_report.dart';
@@ -14,6 +14,7 @@ import '../../data/datasources/incident_local_data_source.dart';
 import '../../data/repositories/incident_repository_impl.dart';
 import '../../domain/incident_categories.dart';
 import 'evidence_providers.dart';
+import '../../domain/usecases/submit_incident_usecase.dart';
 
 // Re-export the shared providers UC02 screens/tests need, so callers can use a
 // single import (mirrors the patrol feature's re-export pattern).
@@ -271,12 +272,27 @@ class IncidentSubmissionController extends Notifier<IncidentSubmissionState> {
       createdAt: DateTime.now(),
     );
 
+    final useCase = SubmitIncidentUseCase(
+      repository: repository,
+      connectivity: connectivity,
+      evidenceRepository: evidenceRepository,
+      syncService: syncService,
+    );
+
     try {
-      // 1) Local save first (offline-first). Only a SUCCESSFUL save may be
-      //    reported to the ranger as safe — never a false "pending".
-      await repository.createIncident(report);
+      final synced = await useCase.execute(report, form.evidence.evidence);
+      state = IncidentSubmissionState(
+        status: synced ? SubmissionPhase.synchronized : SubmissionPhase.savedOffline,
+        reportId: reportId,
+        report: report,
+        message: synced
+            ? null
+            : 'Offline – report saved on this device. It will synchronize '
+                'automatically when the signal returns.',
+      );
+      if (ref.mounted) ref.invalidate(pendingIncidentsProvider);
+      return true;
     } on LocalStorageException catch (e) {
-      // Local save failed — do NOT tell the ranger the report is safe.
       state = IncidentSubmissionState(
         status: SubmissionPhase.failed,
         reportId: reportId,
@@ -297,54 +313,6 @@ class IncidentSubmissionController extends Notifier<IncidentSubmissionState> {
         message: 'Not saved – retry. $e',
       );
       return false;
-    }
-
-    // 2) Attempt online submission + evidence upload right away.
-    final synced = await _trySync(
-      report,
-      form.evidence.evidence,
-      connectivity: connectivity,
-      evidenceRepository: evidenceRepository,
-      syncService: syncService,
-    );
-    state = IncidentSubmissionState(
-      status:
-          synced ? SubmissionPhase.synchronized : SubmissionPhase.savedOffline,
-      reportId: reportId,
-      report: report,
-      message: synced
-          ? null
-          : 'Offline – report saved on this device. It will synchronize '
-              'automatically when the signal returns.',
-    );
-    if (ref.mounted) ref.invalidate(pendingIncidentsProvider);
-    return true;
-  }
-
-  /// Best-effort immediate sync attempt; returns true when fully synchronized.
-  /// Dependencies are passed in so no `ref` access happens after an async gap.
-  Future<bool> _trySync(
-    IncidentReport report,
-    CapturedEvidence? evidence, {
-    required ConnectivityService connectivity,
-    required IncidentEvidenceRepository evidenceRepository,
-    required SyncService syncService,
-  }) async {
-    try {
-      if (!await connectivity.isOnline()) return false;
-
-      // Upload evidence (if any) before/with the record. Idempotent by
-      // filename, so an interrupted upload can be retried safely.
-      if (evidence != null) {
-        await evidenceRepository.uploadEvidence(
-          incidentId: report.id,
-          evidence: evidence,
-        );
-      }
-      final summary = await syncService.syncPendingIncidentData();
-      return !summary.hasFailures;
-    } catch (_) {
-      return false; // stay pending; the sync engine retries later
     }
   }
 
