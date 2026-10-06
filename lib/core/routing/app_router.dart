@@ -241,11 +241,11 @@ GoRouter appRouter(Ref ref) {
             pageBuilder: (context, state) =>
                 const NoTransitionPage(child: AnalyticsScreen()),
           ),
+          GoRoute(
+            path: AppRoutes.assignPatrol,
+            builder: (context, state) => const AssignPatrolRouteScreen(),
+          ),
         ],
-      ),
-      GoRoute(
-        path: AppRoutes.assignPatrol,
-        builder: (context, state) => const AssignPatrolRouteScreen(),
       ),
       GoRoute(
         path: AppRoutes.patrolDetails,
