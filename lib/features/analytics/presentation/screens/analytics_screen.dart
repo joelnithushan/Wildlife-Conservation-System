@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/enums/app_enums.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/session/current_user.dart';
+import '../../../auth/domain/access_policy.dart';
 import '../../data/category_labels.dart';
 import '../../domain/report_access_policy.dart';
 import '../../domain/report_messages.dart';
@@ -27,7 +28,7 @@ class AnalyticsScreen extends ConsumerWidget {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => context.go(AccessPolicy.homeRoute(user.role)),
         ),
         title: const Text('Conservation Reports'),
         actions: [

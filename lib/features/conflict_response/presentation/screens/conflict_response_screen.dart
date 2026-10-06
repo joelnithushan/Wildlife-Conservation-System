@@ -7,6 +7,7 @@ import '../../../../core/routing/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/demo/demo_data.dart';
 import '../../../../shared/session/current_user.dart';
+import '../../../auth/domain/access_policy.dart';
 import '../providers/conflict_providers.dart';
 import '../widgets/alert_card.dart';
 import 'community_reports_sheet.dart';
@@ -46,7 +47,8 @@ class _ConflictResponseScreenState
 
   @override
   Widget build(BuildContext context) {
-    final parkId = ref.watch(currentUserProvider).parkId;
+    final user = ref.watch(currentUserProvider);
+    final parkId = user.parkId;
     final alertsAsync = ref.watch(riskAlertsProvider(parkId));
     final zones = ref.watch(riskZonesProvider(parkId)).asData?.value ?? const [];
     final animals = ref.watch(trackedAnimalsProvider).asData?.value ?? const [];
@@ -58,7 +60,7 @@ class _ConflictResponseScreenState
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => context.go(AccessPolicy.homeRoute(user.role)),
         ),
         title: const Text('Risk Alerts'),
         actions: [
