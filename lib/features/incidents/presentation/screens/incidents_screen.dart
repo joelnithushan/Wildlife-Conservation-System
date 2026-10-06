@@ -8,6 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/date_extensions.dart';
 import '../../../../shared/models/incident_report.dart';
 import '../../../../shared/providers/providers.dart';
+import '../../../auth/domain/access_policy.dart';
 import '../providers/incident_providers.dart';
 import '../widgets/uc02_widgets.dart';
 
@@ -28,7 +29,7 @@ class IncidentsScreen extends ConsumerWidget {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.pop(),
+          onPressed: () => context.go(AccessPolicy.homeRoute(user.role)),
         ),
         title: const Text('Wildlife Incidents'),
         actions: [
