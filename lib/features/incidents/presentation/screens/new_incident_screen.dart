@@ -19,7 +19,7 @@ class NewIncidentScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('New Incident Report'),
+        title: const Text('Incident Type'),
         leading: const BackButton(),
       ),
       body: ListView(

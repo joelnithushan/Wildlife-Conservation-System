@@ -16,14 +16,14 @@ void main() {
     await pumpUc02Screen(tester, const SizedBox.shrink(), container: container,
         initialLocation: AppRoutes.newIncident);
 
-    expect(find.text('New Incident Report'), findsOneWidget);
+    expect(find.text('Incident Type'), findsOneWidget);
     for (final category in IncidentReportCategory.values) {
       expect(find.text(category.label), findsOneWidget);
     }
     expect(find.text('Snare'), findsOneWidget);
     expect(find.text('Carcass'), findsOneWidget);
-    expect(find.text('Illegal campsite'), findsOneWidget);
-    expect(find.text('Suspicious footprints'), findsOneWidget);
+    expect(find.text('Illegal Campsite'), findsOneWidget);
+    expect(find.text('Footprints'), findsOneWidget);
     expect(find.text('Other'), findsOneWidget);
   });
 
