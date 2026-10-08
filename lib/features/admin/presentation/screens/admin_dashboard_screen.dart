@@ -9,6 +9,7 @@ import '../../../../core/widgets/role_nav.dart';
 import '../../../../shared/models/app_user.dart';
 import '../../../../shared/widgets/user_avatar.dart';
 import '../../application/admin_providers.dart';
+import '../../data/demo_staff_seed.dart';
 import '../../data/user_admin_service.dart';
 
 /// System-admin home: manage staff accounts (create / edit / delete).
@@ -26,6 +27,13 @@ class AdminDashboardScreen extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('WildGuard · Admin'),
         automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            tooltip: 'Load demo staff',
+            icon: const Icon(Icons.group_add_outlined),
+            onPressed: () => _seedDemoStaff(context, ref),
+          ),
+        ],
       ),
       bottomNavigationBar: const WildGuardNavBar(),
       floatingActionButton: FloatingActionButton.extended(
@@ -42,7 +50,7 @@ class AdminDashboardScreen extends ConsumerWidget {
               onRetry: () => ref.invalidate(adminUsersProvider),
             ),
             data: (users) => users.isEmpty
-                ? const _EmptyState()
+                ? _EmptyState(onLoadDemo: () => _seedDemoStaff(context, ref))
                 : ListView.separated(
                     padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
                     itemCount: users.length + 1,
@@ -105,6 +113,43 @@ class AdminDashboardScreen extends ConsumerWidget {
     } catch (_) {
       messenger.showSnackBar(
         const SnackBar(content: Text('Could not delete the user.')),
+      );
+    }
+  }
+
+  /// Creates the canonical demo staff (manager, 2 rangers, CLO, researcher) so
+  /// the dashboard has real content to work with. Idempotent — existing
+  /// accounts are skipped. Shows a blocking progress dialog while it runs.
+  Future<void> _seedDemoStaff(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const AlertDialog(
+        content: Row(
+          children: [
+            SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2.4),
+            ),
+            SizedBox(width: 16),
+            Expanded(child: Text('Loading demo staff…')),
+          ],
+        ),
+      ),
+    );
+    try {
+      await ensureDemoStaff();
+      ref.invalidate(adminUsersProvider);
+      if (context.mounted) Navigator.of(context).pop();
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Demo staff loaded.')),
+      );
+    } catch (_) {
+      if (context.mounted) Navigator.of(context).pop();
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Could not load demo staff.')),
       );
     }
   }
@@ -197,19 +242,29 @@ class _RoleChip extends StatelessWidget {
 }
 
 class _EmptyState extends StatelessWidget {
-  const _EmptyState();
+  const _EmptyState({required this.onLoadDemo});
+
+  final VoidCallback onLoadDemo;
 
   @override
   Widget build(BuildContext context) => ListView(
-        children: const [
-          SizedBox(height: 120),
-          Icon(Icons.group_outlined, size: 56, color: Colors.grey),
-          SizedBox(height: 12),
-          Center(
+        children: [
+          const SizedBox(height: 110),
+          const Icon(Icons.group_outlined, size: 56, color: Colors.grey),
+          const SizedBox(height: 12),
+          const Center(
             child: Text(
-              'No staff accounts yet.\nTap “Add user” to create one.',
+              'No staff accounts yet.\nAdd a user, or load the demo staff to get started.',
               textAlign: TextAlign.center,
               style: TextStyle(color: AppColors.textSecondary),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Center(
+            child: OutlinedButton.icon(
+              onPressed: onLoadDemo,
+              icon: const Icon(Icons.group_add_outlined),
+              label: const Text('Load demo staff'),
             ),
           ),
         ],
