@@ -85,7 +85,7 @@ class _IncidentEvidenceScreenState
 
     return Scaffold(
       appBar: AppBar(
-          title: const Text('Capture Photograph'), leading: const BackButton()),
+          title: const Text('Incident Photo'), leading: const BackButton()),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -109,7 +109,7 @@ class _IncidentEvidenceScreenState
                 child: OutlinedButton.icon(
                   onPressed: _busy ? null : _capture,
                   icon: const Icon(Icons.photo_camera),
-                  label: const Text('Camera'),
+                  label: const Text('Capture Photo'),
                 ),
               ),
               const SizedBox(width: 12),
@@ -152,7 +152,7 @@ class _IncidentEvidenceScreenState
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: PrimaryActionButton(
-            label: 'Next',
+            label: 'Continue',
             onPressed: !evidence.isValid
                 ? () {
                     ScaffoldMessenger.of(context).showSnackBar(
