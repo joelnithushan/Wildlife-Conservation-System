@@ -57,8 +57,10 @@ void main() {
     await pumpUc02Screen(tester, const SizedBox.shrink(), container: c,
         initialLocation: AppRoutes.incidentReview);
 
-    expect(find.textContaining('Missing: photo or omission reason, location, '
-        'description'), findsOneWidget);
+    expect(
+        find.textContaining(
+            'Missing: photograph, GPS location, GPS capture time, description, active patrol'),
+        findsOneWidget);
     expect(find.text('Missing – tap edit to fix'), findsWidgets);
 
     final submitFinder = find.widgetWithText(FilledButton, 'Submit Incident');
