@@ -7,6 +7,7 @@ import '../../../../core/enums/app_enums.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/validators.dart';
+import '../../domain/field_incident_draft.dart';
 import '../providers/incident_providers.dart';
 import '../widgets/cached_park_map.dart';
 import '../widgets/uc02_widgets.dart';
@@ -165,8 +166,10 @@ class _IncidentLocationScreenState
             key: const Key('description-field'),
             controller: _descriptionController,
             decoration: const InputDecoration(
-              hintText: 'Describe what you found, where and any risks…',
+              hintText: 'Wire snare found beside animal trail.',
+              helperText: 'Required. 280 characters at most.',
             ),
+            maxLength: FieldIncidentDraft.descriptionMaxLength,
             minLines: 3,
             maxLines: 6,
             textInputAction: TextInputAction.done,
