@@ -17,6 +17,7 @@ void main() {
     controller.setOmissionReason('Unsafe to approach the snare location.');
     controller.setManualLocation(8.03, 80.89);
     controller.setDescription('Wire snare near the river crossing');
+    controller.bindPatrol('patrol-active');
   }
 
   testWidgets('shows every captured detail and enables Submit when complete',

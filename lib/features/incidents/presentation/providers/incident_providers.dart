@@ -12,6 +12,7 @@ import '../../../../shared/repositories/incident_repository.dart';
 import '../../data/datasources/incident_evidence_source.dart';
 import '../../data/datasources/incident_local_data_source.dart';
 import '../../data/repositories/incident_repository_impl.dart';
+import '../../domain/field_incident_draft.dart';
 import '../../domain/incident_categories.dart';
 import 'evidence_providers.dart';
 import '../../domain/usecases/submit_incident_usecase.dart';
@@ -55,9 +56,9 @@ class IncidentEvidenceState {
   bool get hasOmissionReason =>
       omissionReason != null && omissionReason!.trim().isNotEmpty;
 
-  /// The business rule: a photo OR a non-empty omission reason — never both
-  /// required, never neither allowed.
-  bool get isValid => hasPhoto || hasOmissionReason;
+  /// The business rule: a photo OR a non-empty omission reason — never both,
+  /// never neither.
+  bool get isValid => hasPhoto != hasOmissionReason;
 }
 
 /// Full draft state for the new-incident wizard. Plain immutable state kept in
@@ -70,8 +71,11 @@ class IncidentFormState {
     this.longitude,
     this.locationSource,
     this.gpsError,
+    this.photoError,
     this.isLocating = false,
     this.observedAt,
+    this.gpsCapturedAt,
+    this.patrolId,
     this.description = '',
   });
 
@@ -83,8 +87,17 @@ class IncidentFormState {
   /// gps | manual — never fabricated; null until a fix or a manual pick.
   final LocationSource? locationSource;
   final String? gpsError;
+  final String? photoError;
   final bool isLocating;
+
+  /// When the ranger says the incident was observed.
   final DateTime? observedAt;
+
+  /// When latitude/longitude were captured. Stored as the report time.
+  final DateTime? gpsCapturedAt;
+
+  /// In-progress patrol this report belongs to. Null until one is bound.
+  final String? patrolId;
   final String description;
 
   bool get hasLocation => latitude != null && longitude != null;
@@ -94,9 +107,18 @@ class IncidentFormState {
   bool get categoryValid => category != null;
   bool get evidenceValid => evidence.isValid;
   bool get locationValid => hasLocation;
-  bool get descriptionValid => hasDescription;
+  bool get descriptionValid =>
+      hasDescription &&
+      description.trim().length <= FieldIncidentDraft.descriptionMaxLength;
+  bool get captureTimeValid => gpsCapturedAt != null;
+  bool get patrolValid => patrolId != null && patrolId!.trim().isNotEmpty;
   bool get readyToSubmit =>
-      categoryValid && evidenceValid && locationValid && descriptionValid;
+      categoryValid &&
+      evidenceValid &&
+      locationValid &&
+      captureTimeValid &&
+      descriptionValid &&
+      patrolValid;
 
   IncidentFormState copyWith({
     IncidentReportCategory? category,
@@ -105,9 +127,13 @@ class IncidentFormState {
     double? longitude,
     LocationSource? locationSource,
     String? gpsError,
+    String? photoError,
     bool clearGpsError = false,
+    bool clearPhotoError = false,
     bool? isLocating,
     DateTime? observedAt,
+    DateTime? gpsCapturedAt,
+    String? patrolId,
     String? description,
   }) =>
       IncidentFormState(
@@ -117,8 +143,11 @@ class IncidentFormState {
         longitude: longitude ?? this.longitude,
         locationSource: locationSource ?? this.locationSource,
         gpsError: clearGpsError ? null : (gpsError ?? this.gpsError),
+        photoError: clearPhotoError ? null : (photoError ?? this.photoError),
         isLocating: isLocating ?? this.isLocating,
         observedAt: observedAt ?? this.observedAt,
+        gpsCapturedAt: gpsCapturedAt ?? this.gpsCapturedAt,
+        patrolId: patrolId ?? this.patrolId,
         description: description ?? this.description,
       );
 }
@@ -143,10 +172,23 @@ class IncidentFormController extends Notifier<IncidentFormState> {
           localPath: evidence.localPath,
           evidence: evidence,
         ),
+        clearPhotoError: true,
       );
 
-  void clearEvidence() =>
-      state = state.copyWith(evidence: const IncidentEvidenceState());
+  /// E2: capture failed. Type, description, and GPS already entered stay put.
+  void setPhotoError(String message) =>
+      state = state.copyWith(photoError: message);
+
+  void clearEvidence() => state = state.copyWith(
+        evidence: const IncidentEvidenceState(),
+        clearPhotoError: true,
+      );
+
+  void bindPatrol(String? patrolId) => state = state.copyWith(
+        patrolId: (patrolId == null || patrolId.trim().isEmpty)
+            ? state.patrolId
+            : patrolId.trim(),
+      );
 
   void setObservationTime(DateTime when) =>
       state = state.copyWith(observedAt: when);
@@ -160,10 +202,13 @@ class IncidentFormController extends Notifier<IncidentFormState> {
     final location = ref.read(locationServiceProvider);
     try {
       final pos = await location.getCurrentPosition();
+      final capturedAt = DateTime.now();
       state = state.copyWith(
         latitude: pos.latitude,
         longitude: pos.longitude,
         locationSource: LocationSource.gps,
+        gpsCapturedAt: capturedAt,
+        observedAt: capturedAt,
         isLocating: false,
         clearGpsError: true,
       );
@@ -183,13 +228,18 @@ class IncidentFormController extends Notifier<IncidentFormState> {
   }
 
   /// Manual fallback from the cached map view.
-  void setManualLocation(double latitude, double longitude) => state =
-      state.copyWith(
-          latitude: latitude,
-          longitude: longitude,
-          locationSource: LocationSource.manual,
-          isLocating: false,
-          clearGpsError: true);
+  void setManualLocation(double latitude, double longitude) {
+    final capturedAt = DateTime.now();
+    state = state.copyWith(
+      latitude: latitude,
+      longitude: longitude,
+      locationSource: LocationSource.manual,
+      gpsCapturedAt: capturedAt,
+      observedAt: capturedAt,
+      isLocating: false,
+      clearGpsError: true,
+    );
+  }
 
   /// Clears everything after a successful submission.
   void reset() => state = IncidentFormState(observedAt: DateTime.now());
@@ -264,6 +314,7 @@ class IncidentSubmissionController extends Notifier<IncidentSubmissionState> {
       latitude: form.latitude!,
       longitude: form.longitude!,
       locationSource: form.locationSource!,
+      patrolId: form.patrolId,
       localPhotoPath: form.evidence.localPath,
       evidenceOmissionReason: form.evidence.omissionReason,
       submissionStatus: SubmissionStatus.submitted,
@@ -385,6 +436,12 @@ final pendingIncidentsProvider =
   return ref
       .watch(incidentLocalDataSourceProvider)
       .getPendingIncidents(rangerId: user.id);
+});
+
+/// Every incident stored on this device, including synchronized reports.
+final localIncidentsProvider =
+    FutureProvider.autoDispose<List<IncidentReport>>((ref) async {
+  return ref.watch(incidentLocalDataSourceProvider).getLocalIncidents();
 });
 
 // ---------------------------------------------------------------------------

@@ -85,6 +85,7 @@ void main() {
     if (skip != 'evidence') controller().setEvidence(evidence());
     if (skip != 'location') controller().setManualLocation(8.03, 80.89);
     if (skip != 'description') controller().setDescription('Wire snare found');
+    if (skip != 'patrol') controller().bindPatrol('patrol-active');
   }
 
   group('UC02-S01 form – category selection', () {
@@ -160,6 +161,7 @@ void main() {
       expect(form.latitude, 8.031);
       expect(form.longitude, 80.897);
       expect(form.locationSource, LocationSource.gps);
+      expect(form.gpsCapturedAt, isNotNull);
       expect(form.locationValid, isTrue);
     });
 
@@ -301,6 +303,9 @@ void main() {
           8.03, 80.89);
       offlineContainer.read(incidentFormControllerProvider.notifier).setDescription(
           'Wire snare found');
+      offlineContainer
+          .read(incidentFormControllerProvider.notifier)
+          .bindPatrol('patrol-active');
 
       final ok = await offlineContainer
           .read(incidentSubmissionProvider.notifier)
@@ -363,6 +368,9 @@ void main() {
       brokenContainer
           .read(incidentFormControllerProvider.notifier)
           .setDescription('Wire snare found');
+      brokenContainer
+          .read(incidentFormControllerProvider.notifier)
+          .bindPatrol('patrol-active');
 
       final ok =
           await brokenContainer.read(incidentSubmissionProvider.notifier).submit();
