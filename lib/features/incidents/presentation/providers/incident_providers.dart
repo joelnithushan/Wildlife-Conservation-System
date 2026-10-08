@@ -39,6 +39,21 @@ final incidentRepositoryProvider = Provider<IncidentRepository>(
   (ref) => IncidentRepositoryImpl(ref.watch(incidentLocalDataSourceProvider)),
 );
 
+/// In-progress patrol for the signed-in ranger, read from the patrol store.
+/// UC02 only consumes that store; it does not start or complete patrols.
+final activePatrolIdProvider = FutureProvider<String?>((ref) async {
+  final user = ref.watch(currentUserProvider);
+  if (user.id.isEmpty) return null;
+  final db = ref.watch(appDatabaseProvider);
+  final rows = await (db.select(db.patrolsTable)
+        ..where((t) => t.rangerId.equals(user.id)))
+      .get();
+  for (final row in rows) {
+    if (row.status == PatrolStatus.inProgress.wire) return row.id;
+  }
+  return null;
+});
+
 // ---------------------------------------------------------------------------
 // Ranger form (UC02-S01, screens 1–4)
 // ---------------------------------------------------------------------------
@@ -283,8 +298,33 @@ class IncidentSubmissionController extends Notifier<IncidentSubmissionState> {
     final form = ref.read(incidentFormControllerProvider);
     final user = ref.read(currentUserProvider);
 
-    // Guard: validate before doing anything so invalid data never submits.
-    if (!form.readyToSubmit) {
+    if (user.id.isEmpty) {
+      state = const IncidentSubmissionState(
+        status: SubmissionPhase.failed,
+        message: 'Sign in as a ranger before submitting an incident.',
+      );
+      return false;
+    }
+
+    String? patrolId = form.patrolId;
+    try {
+      patrolId = await ref.read(activePatrolIdProvider.future) ?? form.patrolId;
+    } catch (_) {
+      patrolId = form.patrolId;
+    }
+    if (patrolId == null || patrolId.trim().isEmpty) {
+      state = const IncidentSubmissionState(
+        status: SubmissionPhase.failed,
+        message: 'An active patrol is required. Start your patrol, then submit.',
+      );
+      return false;
+    }
+    if (ref.mounted) {
+      ref.read(incidentFormControllerProvider.notifier).bindPatrol(patrolId);
+    }
+
+    final ready = ref.read(incidentFormControllerProvider);
+    if (!ready.readyToSubmit) {
       state = const IncidentSubmissionState(
         status: SubmissionPhase.failed,
         message: 'Missing required details. Review the report and try again.',
@@ -308,15 +348,15 @@ class IncidentSubmissionController extends Notifier<IncidentSubmissionState> {
       id: reportId,
       rangerId: user.id,
       parkId: user.parkId,
-      category: form.category!.shared,
-      description: form.description.trim(),
-      observedAt: form.observedAt ?? DateTime.now(),
-      latitude: form.latitude!,
-      longitude: form.longitude!,
-      locationSource: form.locationSource!,
-      patrolId: form.patrolId,
-      localPhotoPath: form.evidence.localPath,
-      evidenceOmissionReason: form.evidence.omissionReason,
+      category: ready.category!.shared,
+      description: ready.description.trim(),
+      observedAt: ready.gpsCapturedAt ?? ready.observedAt ?? DateTime.now(),
+      latitude: ready.latitude!,
+      longitude: ready.longitude!,
+      locationSource: ready.locationSource!,
+      patrolId: patrolId,
+      localPhotoPath: ready.evidence.localPath,
+      evidenceOmissionReason: ready.evidence.omissionReason,
       submissionStatus: SubmissionStatus.submitted,
       reviewStatus: ReviewStatus.pendingReview,
       syncState: SyncState.pending,
@@ -331,7 +371,7 @@ class IncidentSubmissionController extends Notifier<IncidentSubmissionState> {
     );
 
     try {
-      final synced = await useCase.execute(report, form.evidence.evidence);
+      final synced = await useCase.execute(report, ready.evidence.evidence);
       state = IncidentSubmissionState(
         status: synced ? SubmissionPhase.synchronized : SubmissionPhase.savedOffline,
         reportId: reportId,
