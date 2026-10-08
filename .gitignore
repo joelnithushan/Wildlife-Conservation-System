@@ -7,12 +7,14 @@ build/
 *.g.dart
 *.freezed.dart
 
-# Firebase (never commit secrets)
+# Firebase
+# NOTE: Native config files (google-services.json / GoogleService-Info.plist /
+# firebase.json) are committed intentionally so the whole team shares the same
+# private Firebase project. Access is protected by Firestore/Storage security
+# rules, not by hiding these files. Do NOT make this repository public.
+# Dart-source Firebase options are still ignored (keys must not live in source).
 lib/firebase_options.dart
-google-services.json
-GoogleService-Info.plist
 .firebaserc
-firebase.json
 
 # IDE
 .idea/
@@ -30,11 +32,9 @@ firebase.json
 **/android/local.properties
 **/android/key.properties
 **/android/.gradle/
-**/android/app/google-services.json
 
 # iOS
 **/ios/Flutter/.last_build_id
-**/ios/GoogleService-Info.plist
 
 # Environment / secrets
 .env
