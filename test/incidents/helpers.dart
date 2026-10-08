@@ -12,6 +12,7 @@ import 'package:wildlife_conservation_system/core/services/connectivity_service.
 import 'package:wildlife_conservation_system/core/services/storage_service.dart';
 import 'package:wildlife_conservation_system/core/sync/sync_service.dart';
 import 'package:wildlife_conservation_system/features/incidents/presentation/screens/incident_evidence_screen.dart';
+import 'package:wildlife_conservation_system/features/incidents/presentation/screens/incidents_screen.dart';
 import 'package:wildlife_conservation_system/features/incidents/presentation/screens/incident_location_screen.dart';
 import 'package:wildlife_conservation_system/features/incidents/presentation/screens/incident_result_screen.dart';
 import 'package:wildlife_conservation_system/features/incidents/presentation/screens/incident_review_detail_screen.dart';
@@ -142,6 +143,10 @@ GoRouter uc02TestRouter({String initialLocation = '/'}) => GoRouter(
         GoRoute(
           path: '/',
           builder: (context, state) => const Scaffold(body: SizedBox.shrink()),
+        ),
+        GoRoute(
+          path: AppRoutes.incidents,
+          builder: (context, state) => const IncidentsScreen(),
         ),
         GoRoute(
           path: AppRoutes.newIncident,
