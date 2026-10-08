@@ -38,7 +38,7 @@ class IncidentReviewScreen extends ConsumerWidget {
             label: 'Category',
             value: form.category?.label,
             missing: !form.categoryValid,
-            onEdit: () => context.go(AppRoutes.newIncident),
+            onEdit: () => context.push(AppRoutes.newIncident),
           ),
           _row(
             context,
@@ -48,7 +48,7 @@ class IncidentReviewScreen extends ConsumerWidget {
                 ? 'Photo attached'
                 : form.evidence.omissionReason,
             missing: !form.evidenceValid,
-            onEdit: () => context.go(AppRoutes.incidentEvidence),
+            onEdit: () => context.push(AppRoutes.incidentEvidence),
           ),
           _row(
             context,
@@ -60,7 +60,7 @@ class IncidentReviewScreen extends ConsumerWidget {
                     '(${form.locationSource == LocationSource.gps ? 'GPS' : 'Manual'})'
                 : null,
             missing: !form.locationValid,
-            onEdit: () => context.go(AppRoutes.incidentLocation),
+            onEdit: () => context.push(AppRoutes.incidentLocation),
           ),
           _row(
             context,
@@ -70,7 +70,7 @@ class IncidentReviewScreen extends ConsumerWidget {
                 ? null
                 : DateFormat('dd MMM yyyy, HH:mm').format(form.observedAt!),
             missing: false,
-            onEdit: () => context.go(AppRoutes.incidentLocation),
+            onEdit: () => context.push(AppRoutes.incidentLocation),
           ),
           _row(
             context,
@@ -78,7 +78,7 @@ class IncidentReviewScreen extends ConsumerWidget {
             label: 'Description',
             value: form.hasDescription ? form.description.trim() : null,
             missing: !form.descriptionValid,
-            onEdit: () => context.go(AppRoutes.incidentLocation),
+            onEdit: () => context.push(AppRoutes.incidentLocation),
           ),
           if (form.evidence.evidence?.bytes != null)
             EvidencePreview(bytes: form.evidence.evidence!.bytes),
@@ -88,7 +88,7 @@ class IncidentReviewScreen extends ConsumerWidget {
             label: 'Latitude',
             value: form.latitude?.toStringAsFixed(5),
             missing: form.latitude == null,
-            onEdit: () => context.go(AppRoutes.incidentLocation),
+            onEdit: () => context.push(AppRoutes.incidentLocation),
           ),
           _row(
             context,
@@ -96,7 +96,7 @@ class IncidentReviewScreen extends ConsumerWidget {
             label: 'Longitude',
             value: form.longitude?.toStringAsFixed(5),
             missing: form.longitude == null,
-            onEdit: () => context.go(AppRoutes.incidentLocation),
+            onEdit: () => context.push(AppRoutes.incidentLocation),
           ),
           _row(
             context,
@@ -106,7 +106,7 @@ class IncidentReviewScreen extends ConsumerWidget {
                 ? null
                 : DateFormat('dd MMM yyyy, HH:mm').format(form.gpsCapturedAt!),
             missing: form.gpsCapturedAt == null,
-            onEdit: () => context.go(AppRoutes.incidentLocation),
+            onEdit: () => context.push(AppRoutes.incidentLocation),
           ),
           _row(
             context,
@@ -173,8 +173,8 @@ class IncidentReviewScreen extends ConsumerWidget {
     final submitted = await ref.read(incidentSubmissionProvider.notifier).submit();
     if (!context.mounted) return;
     final state = ref.read(incidentSubmissionProvider);
-    controller.reset();
     if (submitted && state.reportId != null) {
+      controller.reset();
       context.pushReplacement(AppRoutes.incidentResultFor(state.reportId!));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
