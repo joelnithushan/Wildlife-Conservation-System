@@ -29,16 +29,19 @@ void main() {
     await pumpUc02Screen(tester, const SizedBox.shrink(), container: c,
         initialLocation: AppRoutes.incidentReview);
 
-    expect(find.text('Review Report'), findsOneWidget);
+    expect(find.text('Review Incident'), findsOneWidget);
+    expect(find.text('Park Manager'), findsOneWidget);
+    expect(find.text('patrol-active'), findsOneWidget);
     expect(find.text('Snare'), findsOneWidget);
     expect(
         find.text('Unsafe to approach the snare location.'), findsOneWidget);
-    expect(find.textContaining('8.03000'), findsOneWidget);
+    expect(find.textContaining('8.03000'), findsWidgets);
+    expect(find.text('80.89000'), findsOneWidget);
     expect(find.textContaining('Manual'), findsOneWidget);
     expect(find.text('Wire snare near the river crossing'), findsOneWidget);
     expect(find.text('Missing:'), findsNothing);
 
-    final submitFinder = find.widgetWithText(FilledButton, 'Submit Report');
+    final submitFinder = find.widgetWithText(FilledButton, 'Submit Incident');
     expect(submitFinder, findsOneWidget);
     expect(tester.widget<FilledButton>(submitFinder).onPressed, isNotNull);
   });
@@ -56,9 +59,9 @@ void main() {
 
     expect(find.textContaining('Missing: photo or omission reason, location, '
         'description'), findsOneWidget);
-    expect(find.text('Missing – tap edit to fix'), findsNWidgets(3));
+    expect(find.text('Missing – tap edit to fix'), findsWidgets);
 
-    final submitFinder = find.widgetWithText(FilledButton, 'Submit Report');
+    final submitFinder = find.widgetWithText(FilledButton, 'Submit Incident');
     expect(tester.widget<FilledButton>(submitFinder).onPressed, isNull);
   });
 
@@ -76,7 +79,7 @@ void main() {
     await pumpUc02Screen(tester, const SizedBox.shrink(), container: c,
         initialLocation: AppRoutes.incidentReview);
 
-    await tester.tap(find.text('Submit Report'));
+    await tester.tap(find.text('Submit Incident'));
     await tester.pumpAndSettle();
 
     // Submission succeeded locally: the result screen shows the offline state.

@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/enums/app_enums.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/providers/providers.dart';
 import '../providers/incident_providers.dart';
 import '../widgets/uc02_widgets.dart';
 
@@ -19,6 +20,7 @@ class IncidentReviewScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final form = ref.watch(incidentFormControllerProvider);
+    final ranger = ref.watch(currentUserProvider);
     // Keep the autoDispose submission provider alive while the awaited
     // submit() is in flight (the screen is the active listener).
     ref.watch(incidentSubmissionProvider);
@@ -26,7 +28,7 @@ class IncidentReviewScreen extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-          title: const Text('Review Report'), leading: const BackButton()),
+          title: const Text('Review Incident'), leading: const BackButton()),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -78,6 +80,50 @@ class IncidentReviewScreen extends ConsumerWidget {
             missing: !form.descriptionValid,
             onEdit: () => context.go(AppRoutes.incidentLocation),
           ),
+          if (form.evidence.evidence?.bytes != null)
+            EvidencePreview(bytes: form.evidence.evidence!.bytes),
+          _row(
+            context,
+            icon: Icons.my_location,
+            label: 'Latitude',
+            value: form.latitude?.toStringAsFixed(5),
+            missing: form.latitude == null,
+            onEdit: () => context.go(AppRoutes.incidentLocation),
+          ),
+          _row(
+            context,
+            icon: Icons.my_location,
+            label: 'Longitude',
+            value: form.longitude?.toStringAsFixed(5),
+            missing: form.longitude == null,
+            onEdit: () => context.go(AppRoutes.incidentLocation),
+          ),
+          _row(
+            context,
+            icon: Icons.access_time,
+            label: 'Capture time',
+            value: form.gpsCapturedAt == null
+                ? null
+                : DateFormat('dd MMM yyyy, HH:mm').format(form.gpsCapturedAt!),
+            missing: form.gpsCapturedAt == null,
+            onEdit: () => context.go(AppRoutes.incidentLocation),
+          ),
+          _row(
+            context,
+            icon: Icons.person,
+            label: 'Ranger',
+            value: ranger.name,
+            missing: ranger.id.isEmpty,
+            onEdit: () {},
+          ),
+          _row(
+            context,
+            icon: Icons.directions_walk,
+            label: 'Patrol',
+            value: form.patrolId,
+            missing: !form.patrolValid,
+            onEdit: () {},
+          ),
           if (!form.readyToSubmit) ...[
             const SizedBox(height: 8),
             Container(
@@ -108,7 +154,7 @@ class IncidentReviewScreen extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: PrimaryActionButton(
-            label: 'Submit Report',
+            label: 'Submit Incident',
             icon: Icons.send,
             onPressed: !form.readyToSubmit
                 ? null
