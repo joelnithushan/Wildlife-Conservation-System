@@ -144,7 +144,11 @@ class ProcessLocationReading {
     if (existing != null) {
       // Update-in-place: refresh location so the manager sees the latest point,
       // never a second open alert for the same animal + zone.
-      final updated = existing.copyWith(riskZoneId: zone.id);
+      final updated = existing.copyWith(
+        riskZoneId: zone.id,
+        latitude: latitude,
+        longitude: longitude,
+      );
       return ProcessResult(
         outcome: ProcessOutcome.alertUpdated,
         alert: updated,

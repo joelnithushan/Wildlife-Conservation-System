@@ -145,6 +145,31 @@ void main() {
     await service.dispose();
   });
 
+  test('failed incident auto-retries on the next sync run (no manual reset)',
+      () async {
+    await seedSubmittedReport('incident_autoretry');
+    final inner = InMemoryRemoteWriter();
+    // First pass fails (offline); second pass is back online.
+    final remote = FlakyIncidentRemoteWriter(inner, failuresRemaining: 1);
+    final service = DefaultSyncService(store: store, remote: remote);
+
+    // First pass leaves the record marked failed.
+    final first = await service.syncPendingIncidentData();
+    expect(first.failed, 1);
+    expect(inner.documentCount, 0);
+    expect((await repo.getIncident('incident_autoretry'))!.syncState,
+        SyncState.failed);
+
+    // Second pass with NO manual reset — the store must re-queue the failed
+    // record (§21 step 6) so it finally syncs with the same stable ID.
+    final second = await service.syncPendingIncidentData();
+    expect(second.pushed, 1, reason: 'failed record must be retried, not stranded');
+    expect(inner.documentCount, 1); // no duplicate
+    expect((await repo.getIncident('incident_autoretry'))!.syncState,
+        SyncState.synchronized);
+    await service.dispose();
+  });
+
   test('double sync run never duplicates the remote incident', () async {
     await seedSubmittedReport('incident_twice');
     final remote = InMemoryRemoteWriter();
