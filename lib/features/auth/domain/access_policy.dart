@@ -48,9 +48,10 @@ abstract final class AccessPolicy {
 
     switch (role) {
       case UserRole.parkManager:
-        // Manager oversees every module: assign patrol, incident review,
-        // conflict response and reports.
-        return true;
+        // Manager oversees every business module (assign patrol, incident
+        // review, conflict response, reports) — but NOT the admin console;
+        // account management is reserved for UserRole.admin (AGENTS.md §35).
+        return !location.startsWith('/admin');
 
       case UserRole.ranger:
         const exact = {
