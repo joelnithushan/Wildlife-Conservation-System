@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/database/app_database.dart';
 import '../../../../core/enums/app_enums.dart';
@@ -302,8 +303,38 @@ class IncidentSubmissionState {
 }
 
 class IncidentSubmissionController extends Notifier<IncidentSubmissionState> {
+  /// Photo bytes kept for a later sync. Keyed by the stable incident id so a
+  /// retry uploads the same photo and does not create another report.
+  final Map<String, CapturedEvidence> _pendingEvidence = {};
+
   @override
   IncidentSubmissionState build() => const IncidentSubmissionState();
+
+  Future<void> _uploadPhoto(IncidentReport report) async {
+    final evidenceRepository = ref.read(incidentEvidenceRepositoryProvider);
+    final remembered = _pendingEvidence[report.id];
+    if (remembered != null) {
+      await evidenceRepository.uploadEvidence(
+        incidentId: report.id,
+        evidence: remembered,
+      );
+      return;
+    }
+    final path = report.localPhotoPath;
+    if (path == null || path.trim().isEmpty) return;
+    final file = XFile(path);
+    final bytes = await file.readAsBytes();
+    if (bytes.isEmpty) return;
+    final name = file.name.trim().isEmpty ? 'evidence.jpg' : file.name.trim();
+    await evidenceRepository.uploadEvidence(
+      incidentId: report.id,
+      evidence: CapturedEvidence(
+        localPath: path,
+        filename: name,
+        bytes: bytes,
+      ),
+    );
+  }
 
   Future<bool> submit() async {
     final form = ref.read(incidentFormControllerProvider);
@@ -384,8 +415,11 @@ class IncidentSubmissionController extends Notifier<IncidentSubmissionState> {
       syncService: syncService,
     );
 
+    final captured = ready.evidence.evidence;
+    if (captured != null) _pendingEvidence[reportId] = captured;
+
     try {
-      final synced = await useCase.execute(report, ready.evidence.evidence);
+      final synced = await useCase.execute(report, captured);
       state = IncidentSubmissionState(
         status: synced ? SubmissionPhase.synchronized : SubmissionPhase.savedOffline,
         reportId: reportId,
@@ -449,13 +483,33 @@ class IncidentSubmissionController extends Notifier<IncidentSubmissionState> {
       return;
     }
 
+    IncidentReport? report;
+    try {
+      report = await repository.getIncident(reportId);
+    } catch (_) {
+      report = null;
+    }
+    if (report?.localPhotoPath != null && report!.localPhotoPath!.isNotEmpty) {
+      try {
+        await _uploadPhoto(report);
+      } catch (_) {
+        state = IncidentSubmissionState(
+          status: SubmissionPhase.savedOffline,
+          reportId: reportId,
+          report: report,
+          message:
+              'Photo upload failed. The incident stays pending and can be retried.',
+        );
+        return;
+      }
+    }
+
     SyncSummary summary;
     try {
       summary = await syncService.syncPendingIncidentData();
     } catch (_) {
       summary = const SyncSummary(pushed: 0, failed: 1);
     }
-    IncidentReport? report;
     try {
       report = await repository.getIncident(reportId);
     } catch (_) {

@@ -359,6 +359,51 @@ void main() {
       expect(stored.rangerId, 'R001');
     });
 
+    test('reconnect uploads the photo once and marks the same report synchronized',
+        () async {
+      final connectivity = FakeConnectivityService(online: false);
+      final storage = FakeStorageService();
+      final offlineContainer = ProviderContainer(overrides: [
+        appDatabaseProvider.overrideWith((ref) => createIncidentTestDatabase()),
+        locationServiceProvider.overrideWithValue(location),
+        connectivityServiceProvider.overrideWithValue(connectivity),
+        storageServiceProvider.overrideWithValue(storage),
+        remoteWriterProvider.overrideWithValue(FakeRemoteWriter()),
+      ]);
+      addTearDown(offlineContainer.dispose);
+      offlineContainer.read(currentUserProvider.notifier).signIn(
+            const AppUser(
+              id: 'R001',
+              name: 'Test Ranger',
+              parkId: 'PARK-MIN',
+              role: UserRole.ranger,
+            ),
+          );
+      final form = offlineContainer.read(incidentFormControllerProvider.notifier);
+      form.selectCategory(IncidentReportCategory.snare);
+      form.setEvidence(evidence());
+      form.setManualLocation(8.03, 80.89);
+      form.setDescription('Wire snare found');
+      form.bindPatrol('patrol-active');
+
+      expect(
+          await offlineContainer.read(incidentSubmissionProvider.notifier).submit(),
+          isTrue);
+      final id = offlineContainer.read(incidentSubmissionProvider).reportId!;
+
+      connectivity.setOnline(true);
+      await offlineContainer.read(incidentSubmissionProvider.notifier).retrySync(id);
+
+      final after = offlineContainer.read(incidentSubmissionProvider);
+      expect(after.status, SubmissionPhase.synchronized);
+      expect(after.reportId, id);
+      expect(storage.objects.length, 1);
+      final stored =
+          await offlineContainer.read(incidentRepositoryProvider).getIncident(id);
+      expect(stored!.syncState, SyncState.synchronized);
+      expect(stored.patrolId, 'patrol-active');
+    });
+
     test('invalid form never creates a report (duplicate-retry safety)',
         () async {
       fillAll(skip: 'evidence'); // no photo, no omission reason
