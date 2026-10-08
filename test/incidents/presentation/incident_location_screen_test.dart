@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:wildlife_conservation_system/features/incidents/presentation/widgets/cached_park_map.dart';
 import 'package:wildlife_conservation_system/shared/services/location_service.dart';
 
 import '../helpers.dart';
@@ -85,6 +86,29 @@ void main() {
     expect(form.locationSource, LocationSource.manual);
     expect(form.latitude, 8.05);
     expect(form.longitude, 80.91);
+  });
+
+  testWidgets('tapping the cached map stores a manual pin', (tester) async {
+    final c = container();
+    addTearDown(c.dispose);
+
+    await pump(tester, c);
+    await tester.tap(find.text('Set location manually'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(CachedParkMap));
+    await tester.pump();
+    await tester.tap(find.text('Confirm location'));
+    await tester.pumpAndSettle();
+
+    final form = c.read(incidentFormControllerProvider);
+    expect(form.locationSource, LocationSource.manual);
+    expect(form.hasLocation, isTrue);
+    expect(form.latitude, isNotNull);
+    expect(
+      (form.latitude! - CachedParkMap.centerLatitude).abs(),
+      lessThan(CachedParkMap.span),
+    );
   });
 
   testWidgets('description is required: Review without it keeps you here',
