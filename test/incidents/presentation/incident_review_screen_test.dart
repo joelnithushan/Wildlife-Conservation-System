@@ -89,4 +89,27 @@ void main() {
     expect(find.textContaining('Reference: IR-'), findsOneWidget);
     expect(find.text('Retry sync now'), findsOneWidget);
   });
+
+  testWidgets('edit returns to the same review without a new report',
+      (tester) async {
+    final c = container();
+    addTearDown(c.dispose);
+    fillForm(c);
+
+    await pumpUc02Screen(tester, const SizedBox.shrink(), container: c,
+        initialLocation: AppRoutes.incidentReview);
+
+    await tester.tap(find.byTooltip('Edit Category'));
+    await tester.pumpAndSettle();
+    expect(find.text('Incident Type'), findsOneWidget);
+    expect(
+      c.read(incidentFormControllerProvider).description,
+      'Wire snare near the river crossing',
+    );
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Review Incident'), findsOneWidget);
+    expect(find.text('Wire snare near the river crossing'), findsOneWidget);
+  });
 }
