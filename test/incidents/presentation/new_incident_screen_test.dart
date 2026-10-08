@@ -64,7 +64,7 @@ void main() {
     await tester.tap(find.text('Next'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Evidence'), findsOneWidget); // screen 2 reached
+    expect(find.text('Capture Photograph'), findsOneWidget);
     expect(find.byIcon(Icons.photo_camera), findsOneWidget);
   });
 
