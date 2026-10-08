@@ -17,6 +17,7 @@ void main() {
     controller.setOmissionReason('Unsafe to approach the snare location.');
     controller.setManualLocation(8.03, 80.89);
     controller.setDescription('Wire snare near the river crossing');
+    controller.bindPatrol('patrol-active');
   }
 
   testWidgets('shows every captured detail and enables Submit when complete',
@@ -28,16 +29,19 @@ void main() {
     await pumpUc02Screen(tester, const SizedBox.shrink(), container: c,
         initialLocation: AppRoutes.incidentReview);
 
-    expect(find.text('Review Report'), findsOneWidget);
+    expect(find.text('Review Incident'), findsOneWidget);
+    expect(find.text('Park Manager'), findsOneWidget);
+    expect(find.text('patrol-active'), findsOneWidget);
     expect(find.text('Snare'), findsOneWidget);
     expect(
         find.text('Unsafe to approach the snare location.'), findsOneWidget);
-    expect(find.textContaining('8.03000'), findsOneWidget);
+    expect(find.textContaining('8.03000'), findsWidgets);
+    expect(find.text('80.89000'), findsOneWidget);
     expect(find.textContaining('Manual'), findsOneWidget);
     expect(find.text('Wire snare near the river crossing'), findsOneWidget);
     expect(find.text('Missing:'), findsNothing);
 
-    final submitFinder = find.widgetWithText(FilledButton, 'Submit Report');
+    final submitFinder = find.widgetWithText(FilledButton, 'Submit Incident');
     expect(submitFinder, findsOneWidget);
     expect(tester.widget<FilledButton>(submitFinder).onPressed, isNotNull);
   });
@@ -53,11 +57,13 @@ void main() {
     await pumpUc02Screen(tester, const SizedBox.shrink(), container: c,
         initialLocation: AppRoutes.incidentReview);
 
-    expect(find.textContaining('Missing: photo or omission reason, location, '
-        'description'), findsOneWidget);
-    expect(find.text('Missing – tap edit to fix'), findsNWidgets(3));
+    expect(
+        find.textContaining(
+            'Missing: photograph, GPS location, GPS capture time, description, active patrol'),
+        findsOneWidget);
+    expect(find.text('Missing – tap edit to fix'), findsWidgets);
 
-    final submitFinder = find.widgetWithText(FilledButton, 'Submit Report');
+    final submitFinder = find.widgetWithText(FilledButton, 'Submit Incident');
     expect(tester.widget<FilledButton>(submitFinder).onPressed, isNull);
   });
 
@@ -75,14 +81,39 @@ void main() {
     await pumpUc02Screen(tester, const SizedBox.shrink(), container: c,
         initialLocation: AppRoutes.incidentReview);
 
-    await tester.tap(find.text('Submit Report'));
+    await tester.tap(find.text('Submit Incident'));
     await tester.pumpAndSettle();
 
     // Submission succeeded locally: the result screen shows the offline state.
-    expect(find.text('Report submitted'), findsOneWidget);
-    expect(find.text('Offline – saved on this device. It will synchronize '
-        'automatically when the signal returns.'), findsOneWidget);
+    expect(find.text('Pending Synchronisation'), findsOneWidget);
+    expect(
+        find.textContaining(
+            'Your incident will synchronize when connectivity returns.'),
+        findsOneWidget);
     expect(find.textContaining('Reference: IR-'), findsOneWidget);
     expect(find.text('Retry sync now'), findsOneWidget);
+  });
+
+  testWidgets('edit returns to the same review without a new report',
+      (tester) async {
+    final c = container();
+    addTearDown(c.dispose);
+    fillForm(c);
+
+    await pumpUc02Screen(tester, const SizedBox.shrink(), container: c,
+        initialLocation: AppRoutes.incidentReview);
+
+    await tester.tap(find.byTooltip('Edit Category'));
+    await tester.pumpAndSettle();
+    expect(find.text('Incident Type'), findsOneWidget);
+    expect(
+      c.read(incidentFormControllerProvider).description,
+      'Wire snare near the river crossing',
+    );
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.text('Review Incident'), findsOneWidget);
+    expect(find.text('Wire snare near the river crossing'), findsOneWidget);
   });
 }

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 
 import '../../../../core/database/app_database.dart';
 import '../../../../core/enums/app_enums.dart';
@@ -12,6 +13,7 @@ import '../../../../shared/repositories/incident_repository.dart';
 import '../../data/datasources/incident_evidence_source.dart';
 import '../../data/datasources/incident_local_data_source.dart';
 import '../../data/repositories/incident_repository_impl.dart';
+import '../../domain/field_incident_draft.dart';
 import '../../domain/incident_categories.dart';
 import 'evidence_providers.dart';
 import '../../domain/usecases/submit_incident_usecase.dart';
@@ -38,6 +40,37 @@ final incidentRepositoryProvider = Provider<IncidentRepository>(
   (ref) => IncidentRepositoryImpl(ref.watch(incidentLocalDataSourceProvider)),
 );
 
+/// In-progress patrol shown on the field-incident start screen.
+class ActivePatrolSnapshot {
+  const ActivePatrolSnapshot({required this.id, required this.routeId});
+
+  final String id;
+  final String routeId;
+}
+
+/// In-progress patrol for the signed-in ranger, read from the patrol store.
+/// UC02 only consumes that store; it does not start or complete patrols.
+final activePatrolSnapshotProvider =
+    FutureProvider<ActivePatrolSnapshot?>((ref) async {
+  final user = ref.watch(currentUserProvider);
+  if (user.id.isEmpty) return null;
+  final db = ref.watch(appDatabaseProvider);
+  final rows = await (db.select(db.patrolsTable)
+        ..where((t) => t.rangerId.equals(user.id)))
+      .get();
+  for (final row in rows) {
+    if (row.status == PatrolStatus.inProgress.wire) {
+      return ActivePatrolSnapshot(id: row.id, routeId: row.routeId);
+    }
+  }
+  return null;
+});
+
+final activePatrolIdProvider = FutureProvider<String?>((ref) async {
+  final snapshot = await ref.watch(activePatrolSnapshotProvider.future);
+  return snapshot?.id;
+});
+
 // ---------------------------------------------------------------------------
 // Ranger form (UC02-S01, screens 1–4)
 // ---------------------------------------------------------------------------
@@ -55,9 +88,9 @@ class IncidentEvidenceState {
   bool get hasOmissionReason =>
       omissionReason != null && omissionReason!.trim().isNotEmpty;
 
-  /// The business rule: a photo OR a non-empty omission reason — never both
-  /// required, never neither allowed.
-  bool get isValid => hasPhoto || hasOmissionReason;
+  /// The business rule: a photo OR a non-empty omission reason — never both,
+  /// never neither.
+  bool get isValid => hasPhoto != hasOmissionReason;
 }
 
 /// Full draft state for the new-incident wizard. Plain immutable state kept in
@@ -70,8 +103,11 @@ class IncidentFormState {
     this.longitude,
     this.locationSource,
     this.gpsError,
+    this.photoError,
     this.isLocating = false,
     this.observedAt,
+    this.gpsCapturedAt,
+    this.patrolId,
     this.description = '',
   });
 
@@ -83,8 +119,17 @@ class IncidentFormState {
   /// gps | manual — never fabricated; null until a fix or a manual pick.
   final LocationSource? locationSource;
   final String? gpsError;
+  final String? photoError;
   final bool isLocating;
+
+  /// When the ranger says the incident was observed.
   final DateTime? observedAt;
+
+  /// When latitude/longitude were captured. Stored as the report time.
+  final DateTime? gpsCapturedAt;
+
+  /// In-progress patrol this report belongs to. Null until one is bound.
+  final String? patrolId;
   final String description;
 
   bool get hasLocation => latitude != null && longitude != null;
@@ -94,9 +139,29 @@ class IncidentFormState {
   bool get categoryValid => category != null;
   bool get evidenceValid => evidence.isValid;
   bool get locationValid => hasLocation;
-  bool get descriptionValid => hasDescription;
+  bool get descriptionValid =>
+      hasDescription &&
+      description.trim().length <= FieldIncidentDraft.descriptionMaxLength;
+  bool get captureTimeValid => gpsCapturedAt != null;
+  bool get patrolValid => patrolId != null && patrolId!.trim().isNotEmpty;
   bool get readyToSubmit =>
-      categoryValid && evidenceValid && locationValid && descriptionValid;
+      categoryValid &&
+      evidenceValid &&
+      locationValid &&
+      captureTimeValid &&
+      descriptionValid &&
+      patrolValid;
+
+  List<String> missingLabels({required bool hasRanger}) =>
+      FieldIncidentDraft.missing(
+        hasIncidentType: categoryValid,
+        hasPhotograph: evidenceValid,
+        hasLocation: locationValid,
+        hasCaptureTime: captureTimeValid,
+        description: description,
+        hasRanger: hasRanger,
+        hasActivePatrol: patrolValid,
+      );
 
   IncidentFormState copyWith({
     IncidentReportCategory? category,
@@ -105,9 +170,13 @@ class IncidentFormState {
     double? longitude,
     LocationSource? locationSource,
     String? gpsError,
+    String? photoError,
     bool clearGpsError = false,
+    bool clearPhotoError = false,
     bool? isLocating,
     DateTime? observedAt,
+    DateTime? gpsCapturedAt,
+    String? patrolId,
     String? description,
   }) =>
       IncidentFormState(
@@ -117,8 +186,11 @@ class IncidentFormState {
         longitude: longitude ?? this.longitude,
         locationSource: locationSource ?? this.locationSource,
         gpsError: clearGpsError ? null : (gpsError ?? this.gpsError),
+        photoError: clearPhotoError ? null : (photoError ?? this.photoError),
         isLocating: isLocating ?? this.isLocating,
         observedAt: observedAt ?? this.observedAt,
+        gpsCapturedAt: gpsCapturedAt ?? this.gpsCapturedAt,
+        patrolId: patrolId ?? this.patrolId,
         description: description ?? this.description,
       );
 }
@@ -143,10 +215,23 @@ class IncidentFormController extends Notifier<IncidentFormState> {
           localPath: evidence.localPath,
           evidence: evidence,
         ),
+        clearPhotoError: true,
       );
 
-  void clearEvidence() =>
-      state = state.copyWith(evidence: const IncidentEvidenceState());
+  /// E2: capture failed. Type, description, and GPS already entered stay put.
+  void setPhotoError(String message) =>
+      state = state.copyWith(photoError: message);
+
+  void clearEvidence() => state = state.copyWith(
+        evidence: const IncidentEvidenceState(),
+        clearPhotoError: true,
+      );
+
+  void bindPatrol(String? patrolId) => state = state.copyWith(
+        patrolId: (patrolId == null || patrolId.trim().isEmpty)
+            ? state.patrolId
+            : patrolId.trim(),
+      );
 
   void setObservationTime(DateTime when) =>
       state = state.copyWith(observedAt: when);
@@ -160,10 +245,13 @@ class IncidentFormController extends Notifier<IncidentFormState> {
     final location = ref.read(locationServiceProvider);
     try {
       final pos = await location.getCurrentPosition();
+      final capturedAt = DateTime.now();
       state = state.copyWith(
         latitude: pos.latitude,
         longitude: pos.longitude,
         locationSource: LocationSource.gps,
+        gpsCapturedAt: capturedAt,
+        observedAt: capturedAt,
         isLocating: false,
         clearGpsError: true,
       );
@@ -183,13 +271,18 @@ class IncidentFormController extends Notifier<IncidentFormState> {
   }
 
   /// Manual fallback from the cached map view.
-  void setManualLocation(double latitude, double longitude) => state =
-      state.copyWith(
-          latitude: latitude,
-          longitude: longitude,
-          locationSource: LocationSource.manual,
-          isLocating: false,
-          clearGpsError: true);
+  void setManualLocation(double latitude, double longitude) {
+    final capturedAt = DateTime.now();
+    state = state.copyWith(
+      latitude: latitude,
+      longitude: longitude,
+      locationSource: LocationSource.manual,
+      gpsCapturedAt: capturedAt,
+      observedAt: capturedAt,
+      isLocating: false,
+      clearGpsError: true,
+    );
+  }
 
   /// Clears everything after a successful submission.
   void reset() => state = IncidentFormState(observedAt: DateTime.now());
@@ -226,18 +319,76 @@ class IncidentSubmissionState {
 }
 
 class IncidentSubmissionController extends Notifier<IncidentSubmissionState> {
+  /// Photo bytes kept for a later sync. Keyed by the stable incident id so a
+  /// retry uploads the same photo and does not create another report.
+  final Map<String, CapturedEvidence> _pendingEvidence = {};
+
   @override
   IncidentSubmissionState build() => const IncidentSubmissionState();
+
+  Future<void> _uploadPhoto(IncidentReport report) async {
+    final evidenceRepository = ref.read(incidentEvidenceRepositoryProvider);
+    final remembered = _pendingEvidence[report.id];
+    if (remembered != null) {
+      await evidenceRepository.uploadEvidence(
+        incidentId: report.id,
+        evidence: remembered,
+      );
+      return;
+    }
+    final path = report.localPhotoPath;
+    if (path == null || path.trim().isEmpty) return;
+    final file = XFile(path);
+    final bytes = await file.readAsBytes();
+    if (bytes.isEmpty) return;
+    final name = file.name.trim().isEmpty ? 'evidence.jpg' : file.name.trim();
+    await evidenceRepository.uploadEvidence(
+      incidentId: report.id,
+      evidence: CapturedEvidence(
+        localPath: path,
+        filename: name,
+        bytes: bytes,
+      ),
+    );
+  }
 
   Future<bool> submit() async {
     final form = ref.read(incidentFormControllerProvider);
     final user = ref.read(currentUserProvider);
 
-    // Guard: validate before doing anything so invalid data never submits.
-    if (!form.readyToSubmit) {
+    if (user.id.isEmpty) {
       state = const IncidentSubmissionState(
         status: SubmissionPhase.failed,
-        message: 'Missing required details. Review the report and try again.',
+        message: 'Sign in as a ranger before submitting an incident.',
+      );
+      return false;
+    }
+
+    String? patrolId = form.patrolId;
+    try {
+      patrolId = await ref.read(activePatrolIdProvider.future) ?? form.patrolId;
+    } catch (_) {
+      patrolId = form.patrolId;
+    }
+    if (patrolId == null || patrolId.trim().isEmpty) {
+      state = const IncidentSubmissionState(
+        status: SubmissionPhase.failed,
+        message: 'An active patrol is required. Start your patrol, then submit.',
+      );
+      return false;
+    }
+    if (ref.mounted) {
+      ref.read(incidentFormControllerProvider.notifier).bindPatrol(patrolId);
+    }
+
+    final ready = ref.read(incidentFormControllerProvider);
+    if (!ready.readyToSubmit) {
+      final missing = ready.missingLabels(hasRanger: user.id.isNotEmpty);
+      state = IncidentSubmissionState(
+        status: SubmissionPhase.failed,
+        message: missing.isEmpty
+            ? 'Missing required details. Review the report and try again.'
+            : 'Missing: ${missing.join(', ')}.',
       );
       return false;
     }
@@ -258,14 +409,15 @@ class IncidentSubmissionController extends Notifier<IncidentSubmissionState> {
       id: reportId,
       rangerId: user.id,
       parkId: user.parkId,
-      category: form.category!.shared,
-      description: form.description.trim(),
-      observedAt: form.observedAt ?? DateTime.now(),
-      latitude: form.latitude!,
-      longitude: form.longitude!,
-      locationSource: form.locationSource!,
-      localPhotoPath: form.evidence.localPath,
-      evidenceOmissionReason: form.evidence.omissionReason,
+      category: ready.category!.shared,
+      description: ready.description.trim(),
+      observedAt: ready.gpsCapturedAt ?? ready.observedAt ?? DateTime.now(),
+      latitude: ready.latitude!,
+      longitude: ready.longitude!,
+      locationSource: ready.locationSource!,
+      patrolId: patrolId,
+      localPhotoPath: ready.evidence.localPath,
+      evidenceOmissionReason: ready.evidence.omissionReason,
       submissionStatus: SubmissionStatus.submitted,
       reviewStatus: ReviewStatus.pendingReview,
       syncState: SyncState.pending,
@@ -279,8 +431,11 @@ class IncidentSubmissionController extends Notifier<IncidentSubmissionState> {
       syncService: syncService,
     );
 
+    final captured = ready.evidence.evidence;
+    if (captured != null) _pendingEvidence[reportId] = captured;
+
     try {
-      final synced = await useCase.execute(report, form.evidence.evidence);
+      final synced = await useCase.execute(report, captured);
       state = IncidentSubmissionState(
         status: synced ? SubmissionPhase.synchronized : SubmissionPhase.savedOffline,
         reportId: reportId,
@@ -344,13 +499,33 @@ class IncidentSubmissionController extends Notifier<IncidentSubmissionState> {
       return;
     }
 
+    IncidentReport? report;
+    try {
+      report = await repository.getIncident(reportId);
+    } catch (_) {
+      report = null;
+    }
+    if (report?.localPhotoPath != null && report!.localPhotoPath!.isNotEmpty) {
+      try {
+        await _uploadPhoto(report);
+      } catch (_) {
+        state = IncidentSubmissionState(
+          status: SubmissionPhase.savedOffline,
+          reportId: reportId,
+          report: report,
+          message:
+              'Photo upload failed. The incident stays pending and can be retried.',
+        );
+        return;
+      }
+    }
+
     SyncSummary summary;
     try {
       summary = await syncService.syncPendingIncidentData();
     } catch (_) {
       summary = const SyncSummary(pushed: 0, failed: 1);
     }
-    IncidentReport? report;
     try {
       report = await repository.getIncident(reportId);
     } catch (_) {
@@ -385,6 +560,12 @@ final pendingIncidentsProvider =
   return ref
       .watch(incidentLocalDataSourceProvider)
       .getPendingIncidents(rangerId: user.id);
+});
+
+/// Every incident stored on this device, including synchronized reports.
+final localIncidentsProvider =
+    FutureProvider.autoDispose<List<IncidentReport>>((ref) async {
+  return ref.watch(incidentLocalDataSourceProvider).getLocalIncidents();
 });
 
 // ---------------------------------------------------------------------------

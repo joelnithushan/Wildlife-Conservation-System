@@ -1,8 +1,8 @@
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 
 import '../../../core/constants/firestore_collections.dart';
 import '../../../core/enums/app_enums.dart';
@@ -55,14 +55,10 @@ class UserAdminException implements Exception {
 /// (Firebase Auth otherwise switches the session to the newly created user).
 /// See AGENTS.md §35 — this is supporting infrastructure, not a graded use case.
 class UserAdminService {
-  UserAdminService({
-    FirebaseFirestore? firestore,
-    FirebaseStorage? storage,
-  })  : _firestore = firestore ?? FirebaseFirestore.instance,
-        _storage = storage ?? FirebaseStorage.instance;
+  UserAdminService({FirebaseFirestore? firestore})
+      : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
-  final FirebaseStorage _storage;
 
   CollectionReference<Map<String, dynamic>> get _users =>
       _firestore.collection(FirestoreCollections.users);
@@ -109,11 +105,6 @@ class UserAdminService {
         throw UserAdminException(_authMessage(e.code));
       }
 
-      var photoUrl = '';
-      if (input.photoBytes != null) {
-        photoUrl = await _uploadPhoto(uid, input.photoBytes!);
-      }
-
       final user = AppUser(
         id: uid,
         name: input.fullName.trim(),
@@ -124,7 +115,8 @@ class UserAdminService {
         nic: input.nic.trim(),
         gender: input.gender,
         dateOfBirth: input.dateOfBirth,
-        photoUrl: photoUrl,
+        // Store the picture inline in Firestore as base64 (no Storage needed).
+        photoData: input.photoBytes == null ? '' : base64Encode(input.photoBytes!),
         role: input.role,
         parkId: input.parkId.trim(),
       );
@@ -140,29 +132,18 @@ class UserAdminService {
   Future<AppUser> updateUser(AppUser user, {Uint8List? newPhotoBytes}) async {
     var next = user;
     if (newPhotoBytes != null) {
-      next = next.copyWith(photoUrl: await _uploadPhoto(next.id, newPhotoBytes));
+      next = next.copyWith(photoData: base64Encode(newPhotoBytes));
     }
     await _users.doc(next.id).set(next.toMap());
     return next;
   }
 
-  /// Removes a user's profile (and profile picture). This locks the account out
-  /// of WildGuard — login requires a valid profile. The underlying Firebase Auth
-  /// record can only be fully removed with the Admin SDK (server-side), which is
-  /// intentionally out of scope for this client app (AGENTS.md §54).
+  /// Removes a user's profile. This locks the account out of WildGuard — login
+  /// requires a valid profile. The underlying Firebase Auth record can only be
+  /// fully removed with the Admin SDK (server-side), which is intentionally out
+  /// of scope for this client app (AGENTS.md §54).
   Future<void> deleteUser(AppUser user) async {
     await _users.doc(user.id).delete();
-    try {
-      await _storage.ref('profile_pictures/${user.id}.jpg').delete();
-    } catch (_) {
-      // No picture / already gone — ignore.
-    }
-  }
-
-  Future<String> _uploadPhoto(String uid, Uint8List bytes) async {
-    final ref = _storage.ref('profile_pictures/$uid.jpg');
-    await ref.putData(bytes, SettableMetadata(contentType: 'image/jpeg'));
-    return ref.getDownloadURL();
   }
 
   String _authMessage(String code) => switch (code) {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
+import 'package:wildlife_conservation_system/features/incidents/presentation/widgets/cached_park_map.dart';
 import 'package:wildlife_conservation_system/shared/services/location_service.dart';
 
 import '../helpers.dart';
@@ -19,6 +20,7 @@ void main() {
 
   setUp(() {
     location = _MockLocationService();
+    when(() => location.getCurrentPosition()).thenThrow(Exception('no fix'));
   });
 
   Future<void> pump(WidgetTester tester, ProviderContainer c) =>
@@ -87,6 +89,29 @@ void main() {
     expect(form.longitude, 80.91);
   });
 
+  testWidgets('tapping the cached map stores a manual pin', (tester) async {
+    final c = container();
+    addTearDown(c.dispose);
+
+    await pump(tester, c);
+    await tester.tap(find.text('Set location manually'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(CachedParkMap));
+    await tester.pump();
+    await tester.tap(find.text('Confirm location'));
+    await tester.pumpAndSettle();
+
+    final form = c.read(incidentFormControllerProvider);
+    expect(form.locationSource, LocationSource.manual);
+    expect(form.hasLocation, isTrue);
+    expect(form.latitude, isNotNull);
+    expect(
+      (form.latitude! - CachedParkMap.centerLatitude).abs(),
+      lessThan(CachedParkMap.span),
+    );
+  });
+
   testWidgets('description is required: Review without it keeps you here',
       (tester) async {
     when(() => location.getCurrentPosition())
@@ -99,11 +124,11 @@ void main() {
     await tester.tap(find.text('Use current GPS location'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Review report'));
+    await tester.tap(find.text('Continue'));
     await tester.pump();
 
     expect(find.text('A description is required to continue.'), findsOneWidget);
-    expect(find.text('Review Report'), findsNothing); // never navigated
+    expect(find.text('Review Incident'), findsNothing); // never navigated
   });
 
   testWidgets('description + location unlocks Review report', (tester) async {
@@ -120,10 +145,10 @@ void main() {
         find.byKey(const Key('description-field')), 'Wire snare found');
     await tester.pump();
 
-    await tester.tap(find.text('Review report'));
+    await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Review Report'), findsOneWidget);
+    expect(find.text('Review Incident'), findsOneWidget);
     expect(find.text('Wire snare found'), findsOneWidget);
   });
 }

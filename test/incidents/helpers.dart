@@ -12,11 +12,13 @@ import 'package:wildlife_conservation_system/core/services/connectivity_service.
 import 'package:wildlife_conservation_system/core/services/storage_service.dart';
 import 'package:wildlife_conservation_system/core/sync/sync_service.dart';
 import 'package:wildlife_conservation_system/features/incidents/presentation/screens/incident_evidence_screen.dart';
+import 'package:wildlife_conservation_system/features/incidents/presentation/screens/incidents_screen.dart';
 import 'package:wildlife_conservation_system/features/incidents/presentation/screens/incident_location_screen.dart';
 import 'package:wildlife_conservation_system/features/incidents/presentation/screens/incident_result_screen.dart';
 import 'package:wildlife_conservation_system/features/incidents/presentation/screens/incident_review_detail_screen.dart';
 import 'package:wildlife_conservation_system/features/incidents/presentation/screens/incident_review_queue_screen.dart';
 import 'package:wildlife_conservation_system/features/incidents/presentation/screens/incident_review_screen.dart';
+import 'package:wildlife_conservation_system/features/incidents/presentation/screens/incident_type_screen.dart';
 import 'package:wildlife_conservation_system/features/incidents/presentation/screens/new_incident_screen.dart';
 
 // Convenience re-exports so widget tests can reference providers, fakes and
@@ -144,8 +146,16 @@ GoRouter uc02TestRouter({String initialLocation = '/'}) => GoRouter(
           builder: (context, state) => const Scaffold(body: SizedBox.shrink()),
         ),
         GoRoute(
+          path: AppRoutes.incidents,
+          builder: (context, state) => const IncidentsScreen(),
+        ),
+        GoRoute(
           path: AppRoutes.newIncident,
           builder: (context, state) => const NewIncidentScreen(),
+        ),
+        GoRoute(
+          path: AppRoutes.incidentType,
+          builder: (context, state) => const IncidentTypeScreen(),
         ),
         GoRoute(
           path: AppRoutes.incidentEvidence,

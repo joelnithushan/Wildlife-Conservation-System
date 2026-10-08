@@ -253,6 +253,26 @@ void main() {
       });
       expect(result.issue, ProfileIssue.incomplete);
     });
+
+    test('operational role without a park is incomplete', () {
+      final result = validateProfile('abc', {
+        'name': 'K. Perera',
+        'role': 'ranger',
+        'parkId': '',
+      });
+      expect(result.issue, ProfileIssue.incomplete);
+    });
+
+    test('admin is valid without a park (not tied to one park)', () {
+      final result = validateProfile('admin-uid', {
+        'name': 'System Administrator',
+        'role': 'admin',
+        'parkId': '',
+      });
+      expect(result.isOk, isTrue);
+      expect(result.user!.role, UserRole.admin);
+      expect(result.user!.id, 'admin-uid');
+    });
   });
 
   group('AuthFailure.fromFirebaseAuthCode', () {

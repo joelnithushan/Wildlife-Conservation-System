@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -89,6 +91,7 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
             children: [
               Center(child: _PhotoPicker(
                 bytes: _photoBytes,
+                existingData: _editing?.photoData ?? '',
                 existingUrl: _editing?.photoUrl ?? '',
                 onPick: _pickPhoto,
               )),
@@ -278,10 +281,13 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
   // --- Actions ------------------------------------------------------------
 
   Future<void> _pickPhoto() async {
+    // Keep the image small — it is stored inline (base64) in the Firestore
+    // document, which has a 1 MB limit.
     final picked = await ImagePicker().pickImage(
       source: ImageSource.gallery,
-      maxWidth: 800,
-      imageQuality: 85,
+      maxWidth: 400,
+      maxHeight: 400,
+      imageQuality: 70,
     );
     if (picked == null) return;
     final bytes = await picked.readAsBytes();
@@ -376,11 +382,13 @@ class _UserFormScreenState extends ConsumerState<UserFormScreen> {
 class _PhotoPicker extends StatelessWidget {
   const _PhotoPicker({
     required this.bytes,
+    required this.existingData,
     required this.existingUrl,
     required this.onPick,
   });
 
   final Uint8List? bytes;
+  final String existingData;
   final String existingUrl;
   final VoidCallback onPick;
 
@@ -389,6 +397,12 @@ class _PhotoPicker extends StatelessWidget {
     ImageProvider? image;
     if (bytes != null) {
       image = MemoryImage(bytes!);
+    } else if (existingData.isNotEmpty) {
+      try {
+        image = MemoryImage(base64Decode(existingData));
+      } catch (_) {
+        image = null;
+      }
     } else if (existingUrl.isNotEmpty) {
       image = NetworkImage(existingUrl);
     }

@@ -7,7 +7,9 @@ import '../../../../core/enums/app_enums.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/validators.dart';
+import '../../domain/field_incident_draft.dart';
 import '../providers/incident_providers.dart';
+import '../widgets/cached_park_map.dart';
 import '../widgets/uc02_widgets.dart';
 
 /// UC02-S01 – Screen 3: Location & Description.
@@ -40,6 +42,12 @@ class _IncidentLocationScreenState
       _lngController.text = form.longitude!.toStringAsFixed(6);
     }
     _descriptionController.text = form.description;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final current = ref.read(incidentFormControllerProvider);
+      if (!current.hasLocation && !current.isLocating) {
+        ref.read(incidentFormControllerProvider.notifier).captureGpsLocation();
+      }
+    });
   }
 
   @override
@@ -57,7 +65,7 @@ class _IncidentLocationScreenState
 
     return Scaffold(
       appBar: AppBar(
-          title: const Text('Location & Description'),
+          title: const Text('Incident Details'),
           leading: const BackButton()),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -103,7 +111,19 @@ class _IncidentLocationScreenState
                 ),
               ),
             ),
-          if (form.isLocating) const LinearProgressIndicator(),
+          if (form.isLocating)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text('Capturing GPS...'),
+            ),
+          if (form.gpsCapturedAt != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Captured ${DateFormat('dd MMM yyyy, HH:mm').format(form.gpsCapturedAt!)}',
+                key: const Key('gps-capture-time'),
+              ),
+            ),
           if (form.gpsError != null) ...[
             const SizedBox(height: 8),
             _GpsErrorCard(
@@ -156,13 +176,23 @@ class _IncidentLocationScreenState
             key: const Key('description-field'),
             controller: _descriptionController,
             decoration: const InputDecoration(
-              hintText: 'Describe what you found, where and any risks…',
+              hintText: 'Wire snare found beside animal trail.',
+              helperText: 'Required. 160 characters at most.',
+              labelText: 'Short description',
             ),
+            maxLength: FieldIncidentDraft.descriptionMaxLength,
             minLines: 3,
             maxLines: 6,
             textInputAction: TextInputAction.done,
             onChanged: controller.setDescription,
           ),
+          if (form.evidence.hasPhoto)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.photo, color: AppColors.primary),
+              title: const Text('Photograph attached'),
+              subtitle: Text(form.evidence.evidence?.filename ?? 'Photo ready'),
+            ),
           const SizedBox(height: 8),
         ],
       ),
@@ -170,7 +200,7 @@ class _IncidentLocationScreenState
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: PrimaryActionButton(
-            label: 'Review report',
+            label: 'Continue',
             onPressed: !(form.hasLocation && form.hasDescription)
                 ? () {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -338,31 +368,19 @@ class _ManualLocationSheetState extends ConsumerState<_ManualLocationSheet> {
             ],
           ),
           const Text(
-            'Move the pin to where you found the incident.',
+            'Tap or drag the pin to where you found the incident.',
             style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
           const SizedBox(height: 12),
-          SizedBox(
-            height: 140,
-            child: Stack(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEDF2EE),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.2)),
-                  ),
-                  width: double.infinity,
-                  child: const Center(
-                    child: Icon(Icons.terrain, size: 40, color: Colors.grey),
-                  ),
-                ),
-                const Center(
-                  child: Icon(Icons.location_on, color: AppColors.error, size: 36),
-                ),
-              ],
-            ),
+          CachedParkMap(
+            latitude: double.tryParse(_lat.text.trim()),
+            longitude: double.tryParse(_lng.text.trim()),
+            onChanged: (point) {
+              setState(() {
+                _lat.text = point.latitude.toStringAsFixed(6);
+                _lng.text = point.longitude.toStringAsFixed(6);
+              });
+            },
           ),
           const SizedBox(height: 12),
           Row(

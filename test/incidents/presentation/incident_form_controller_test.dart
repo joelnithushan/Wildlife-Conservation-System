@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wildlife_conservation_system/core/database/app_database.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:wildlife_conservation_system/core/errors/exceptions.dart';
@@ -85,6 +87,7 @@ void main() {
     if (skip != 'evidence') controller().setEvidence(evidence());
     if (skip != 'location') controller().setManualLocation(8.03, 80.89);
     if (skip != 'description') controller().setDescription('Wire snare found');
+    if (skip != 'patrol') controller().bindPatrol('patrol-active');
   }
 
   group('UC02-S01 form – category selection', () {
@@ -160,6 +163,7 @@ void main() {
       expect(form.latitude, 8.031);
       expect(form.longitude, 80.897);
       expect(form.locationSource, LocationSource.gps);
+      expect(form.gpsCapturedAt, isNotNull);
       expect(form.locationValid, isTrue);
     });
 
@@ -192,6 +196,33 @@ void main() {
           LocationSource.manual);
     });
 
+    test('GPS failure keeps the incident type and description', () async {
+      controller().selectCategory(IncidentReportCategory.snare);
+      controller().setDescription('Wire snare found beside animal trail.');
+      when(() => location.getCurrentPosition()).thenThrow(Exception('no fix'));
+
+      await controller().captureGpsLocation();
+
+      final form = container.read(incidentFormControllerProvider);
+      expect(form.category, IncidentReportCategory.snare);
+      expect(form.description, contains('animal trail'));
+      expect(form.gpsError, isNotNull);
+      expect(form.hasLocation, isFalse);
+    });
+
+    test('photo failure keeps type, description and location', () {
+      controller().selectCategory(IncidentReportCategory.carcass);
+      controller().setDescription('Carcass beside the trail.');
+      controller().setManualLocation(8.03, 80.89);
+      controller().setPhotoError('Photo capture failed. Try again.');
+
+      final form = container.read(incidentFormControllerProvider);
+      expect(form.photoError, contains('Photo capture failed'));
+      expect(form.category, IncidentReportCategory.carcass);
+      expect(form.description, contains('Carcass'));
+      expect(form.hasLocation, isTrue);
+    });
+
     test('manual location is stored with locationSource = manual', () {
       controller().setManualLocation(8.05, 80.91);
       final form = container.read(incidentFormControllerProvider);
@@ -208,6 +239,14 @@ void main() {
       final form = container.read(incidentFormControllerProvider);
       expect(form.descriptionValid, isFalse);
       expect(form.readyToSubmit, isFalse);
+    });
+
+    test('a description longer than 160 characters is not valid', () {
+      fillAll();
+      controller().setDescription('x' * 161);
+      expect(
+          container.read(incidentFormControllerProvider).descriptionValid,
+          isFalse);
     });
 
     test('whitespace-only description is not valid', () {
@@ -274,6 +313,8 @@ void main() {
       expect(stored!.syncState, SyncState.synchronized);
       expect(stored.reviewStatus, ReviewStatus.pendingReview);
       expect(stored.submissionStatus, SubmissionStatus.submitted);
+      expect(stored.rangerId, 'R001');
+      expect(stored.patrolId, 'patrol-active');
     });
 
     test('offline submission stores locally with pending sync state',
@@ -301,6 +342,9 @@ void main() {
           8.03, 80.89);
       offlineContainer.read(incidentFormControllerProvider.notifier).setDescription(
           'Wire snare found');
+      offlineContainer
+          .read(incidentFormControllerProvider.notifier)
+          .bindPatrol('patrol-active');
 
       final ok = await offlineContainer
           .read(incidentSubmissionProvider.notifier)
@@ -314,6 +358,77 @@ void main() {
           .read(incidentRepositoryProvider)
           .getIncident(submission.reportId!);
       expect(stored!.syncState, SyncState.pending);
+    });
+
+    test('an in-progress patrol from the patrol store is attached', () async {
+      final db = container.read(appDatabaseProvider);
+      await db.into(db.patrolsTable).insert(
+            PatrolsTableCompanion.insert(
+              id: 'patrol-live',
+              routeId: 'route-1',
+              rangerId: 'R001',
+              parkId: 'PARK-MIN',
+              scheduledFor: DateTime.utc(2026, 10, 8),
+              assignedAt: DateTime.utc(2026, 10, 8),
+              status: const Value('inProgress'),
+            ),
+          );
+      fillAll(skip: 'patrol');
+
+      final ok =
+          await container.read(incidentSubmissionProvider.notifier).submit();
+
+      expect(ok, isTrue);
+      final stored = await container.read(incidentRepositoryProvider).getIncident(
+            container.read(incidentSubmissionProvider).reportId!,
+          );
+      expect(stored!.patrolId, 'patrol-live');
+      expect(stored.rangerId, 'R001');
+    });
+
+    test('reconnect uploads the photo once and marks the same report synchronized',
+        () async {
+      final connectivity = FakeConnectivityService(online: false);
+      final storage = FakeStorageService();
+      final offlineContainer = ProviderContainer(overrides: [
+        appDatabaseProvider.overrideWith((ref) => createIncidentTestDatabase()),
+        locationServiceProvider.overrideWithValue(location),
+        connectivityServiceProvider.overrideWithValue(connectivity),
+        storageServiceProvider.overrideWithValue(storage),
+        remoteWriterProvider.overrideWithValue(FakeRemoteWriter()),
+      ]);
+      addTearDown(offlineContainer.dispose);
+      offlineContainer.read(currentUserProvider.notifier).signIn(
+            const AppUser(
+              id: 'R001',
+              name: 'Test Ranger',
+              parkId: 'PARK-MIN',
+              role: UserRole.ranger,
+            ),
+          );
+      final form = offlineContainer.read(incidentFormControllerProvider.notifier);
+      form.selectCategory(IncidentReportCategory.snare);
+      form.setEvidence(evidence());
+      form.setManualLocation(8.03, 80.89);
+      form.setDescription('Wire snare found');
+      form.bindPatrol('patrol-active');
+
+      expect(
+          await offlineContainer.read(incidentSubmissionProvider.notifier).submit(),
+          isTrue);
+      final id = offlineContainer.read(incidentSubmissionProvider).reportId!;
+
+      connectivity.setOnline(true);
+      await offlineContainer.read(incidentSubmissionProvider.notifier).retrySync(id);
+
+      final after = offlineContainer.read(incidentSubmissionProvider);
+      expect(after.status, SubmissionPhase.synchronized);
+      expect(after.reportId, id);
+      expect(storage.objects.length, 1);
+      final stored =
+          await offlineContainer.read(incidentRepositoryProvider).getIncident(id);
+      expect(stored!.syncState, SyncState.synchronized);
+      expect(stored.patrolId, 'patrol-active');
     });
 
     test('invalid form never creates a report (duplicate-retry safety)',
@@ -363,6 +478,9 @@ void main() {
       brokenContainer
           .read(incidentFormControllerProvider.notifier)
           .setDescription('Wire snare found');
+      brokenContainer
+          .read(incidentFormControllerProvider.notifier)
+          .bindPatrol('patrol-active');
 
       final ok =
           await brokenContainer.read(incidentSubmissionProvider.notifier).submit();

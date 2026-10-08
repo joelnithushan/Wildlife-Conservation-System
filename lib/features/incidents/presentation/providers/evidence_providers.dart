@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -14,8 +12,8 @@ class ImagePickerEvidenceSource implements IncidentEvidenceSource {
 
   Future<CapturedEvidence?> _fromXFile(XFile? file) async {
     if (file == null) return null;
-    final bytes = await File(file.path).readAsBytes();
-    final name = file.path.split(Platform.pathSeparator).last;
+    final bytes = await file.readAsBytes();
+    final name = file.name.trim().isEmpty ? 'evidence.jpg' : file.name.trim();
     return CapturedEvidence(
       localPath: file.path,
       filename: name,

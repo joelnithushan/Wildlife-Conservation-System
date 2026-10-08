@@ -32,6 +32,18 @@ class IncidentLocalDataSource {
     return row?.toDomain();
   }
 
+  /// Every report stored on this device, newest observation first.
+  Future<List<IncidentReport>> getLocalIncidents() async {
+    try {
+      final query = _db.select(_db.incidentReportsTable)
+        ..orderBy([(t) => OrderingTerm.desc(t.observedAt)]);
+      final rows = await query.get();
+      return rows.map((r) => r.toDomain()).toList();
+    } catch (e) {
+      throw LocalStorageException('Failed to read incidents: $e');
+    }
+  }
+
   /// This ranger's reports, newest observation first (Ranger "my reports" list).
   Future<List<IncidentReport>> getIncidentsByRanger(String rangerId) async {
     try {

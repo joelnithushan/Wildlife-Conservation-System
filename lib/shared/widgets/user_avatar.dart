@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
@@ -16,12 +18,12 @@ class UserAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final hasPhoto = user.photoUrl.isNotEmpty;
+    final image = _imageProvider();
     return CircleAvatar(
       radius: radius,
       backgroundColor: AppColors.primary.withValues(alpha: 0.12),
-      backgroundImage: hasPhoto ? NetworkImage(user.photoUrl) : null,
-      child: hasPhoto
+      backgroundImage: image,
+      child: image != null
           ? null
           : Text(
               _initials(user.name),
@@ -32,6 +34,20 @@ class UserAvatar extends StatelessWidget {
               ),
             ),
     );
+  }
+
+  /// Prefers the inline base64 picture ([AppUser.photoData]); falls back to a
+  /// Storage URL ([AppUser.photoUrl]) for legacy records; else null (initials).
+  ImageProvider? _imageProvider() {
+    if (user.photoData.isNotEmpty) {
+      try {
+        return MemoryImage(base64Decode(user.photoData));
+      } catch (_) {
+        return null;
+      }
+    }
+    if (user.photoUrl.isNotEmpty) return NetworkImage(user.photoUrl);
+    return null;
   }
 
   static String _initials(String name) {

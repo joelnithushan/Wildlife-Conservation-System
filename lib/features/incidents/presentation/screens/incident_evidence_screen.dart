@@ -42,23 +42,39 @@ class _IncidentEvidenceScreenState
 
   Future<void> _capture() async {
     setState(() => _busy = true);
-    final evidence =
-        await ref.read(incidentEvidenceSourceProvider).captureFromCamera();
-    if (!mounted) return;
-    setState(() => _busy = false);
-    if (evidence != null) {
-      ref.read(incidentFormControllerProvider.notifier).setEvidence(evidence);
+    try {
+      final evidence =
+          await ref.read(incidentEvidenceSourceProvider).captureFromCamera();
+      if (!mounted) return;
+      if (evidence != null) {
+        ref.read(incidentFormControllerProvider.notifier).setEvidence(evidence);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ref.read(incidentFormControllerProvider.notifier).setPhotoError(
+            'Photo capture failed. Try again. Incident type, description, and GPS are kept.',
+          );
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
   Future<void> _pickFromGallery() async {
     setState(() => _busy = true);
-    final evidence =
-        await ref.read(incidentEvidenceSourceProvider).pickFromGallery();
-    if (!mounted) return;
-    setState(() => _busy = false);
-    if (evidence != null) {
-      ref.read(incidentFormControllerProvider.notifier).setEvidence(evidence);
+    try {
+      final evidence =
+          await ref.read(incidentEvidenceSourceProvider).pickFromGallery();
+      if (!mounted) return;
+      if (evidence != null) {
+        ref.read(incidentFormControllerProvider.notifier).setEvidence(evidence);
+      }
+    } catch (_) {
+      if (!mounted) return;
+      ref.read(incidentFormControllerProvider.notifier).setPhotoError(
+            'Could not open the photo. Try again. Your other incident details are kept.',
+          );
+    } finally {
+      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -68,15 +84,24 @@ class _IncidentEvidenceScreenState
     final evidence = form.evidence;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Evidence'), leading: const BackButton()),
+      appBar: AppBar(
+          title: const Text('Incident Photo'), leading: const BackButton()),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           const SectionLabel('Photo evidence'),
           EvidencePreview(
-            localPath: evidence.localPath,
+            bytes: evidence.evidence?.bytes,
             onRetake: evidence.hasPhoto ? _capture : null,
           ),
+          if (form.photoError != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              form.photoError!,
+              key: const Key('photo-error'),
+              style: const TextStyle(color: Colors.red),
+            ),
+          ],
           const SizedBox(height: 12),
           Row(
             children: [
@@ -84,7 +109,7 @@ class _IncidentEvidenceScreenState
                 child: OutlinedButton.icon(
                   onPressed: _busy ? null : _capture,
                   icon: const Icon(Icons.photo_camera),
-                  label: const Text('Camera'),
+                  label: const Text('Capture Photo'),
                 ),
               ),
               const SizedBox(width: 12),
@@ -127,7 +152,7 @@ class _IncidentEvidenceScreenState
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: PrimaryActionButton(
-            label: 'Next',
+            label: 'Continue',
             onPressed: !evidence.isValid
                 ? () {
                     ScaffoldMessenger.of(context).showSnackBar(

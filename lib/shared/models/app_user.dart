@@ -24,6 +24,7 @@ class AppUser extends Equatable {
     this.gender,
     this.dateOfBirth,
     this.photoUrl = '',
+    this.photoData = '',
     this.isAvailable = true,
     this.isActive = true,
   });
@@ -47,8 +48,13 @@ class AppUser extends Equatable {
   final Gender? gender;
   final DateTime? dateOfBirth;
 
-  /// Firebase Storage download URL for the profile picture.
+  /// Firebase Storage download URL for the profile picture (optional/legacy).
   final String photoUrl;
+
+  /// Base64-encoded JPEG of the profile picture, stored inline in Firestore.
+  /// Used instead of Firebase Storage so the feature works on the free plan
+  /// without Storage billing/rules. Empty when no picture is set.
+  final String photoData;
 
   final UserRole role;
   final String parkId;
@@ -91,6 +97,7 @@ class AppUser extends Equatable {
     Gender? gender,
     DateTime? dateOfBirth,
     String? photoUrl,
+    String? photoData,
     UserRole? role,
     String? parkId,
     bool? isAvailable,
@@ -107,6 +114,7 @@ class AppUser extends Equatable {
         gender: gender ?? this.gender,
         dateOfBirth: dateOfBirth ?? this.dateOfBirth,
         photoUrl: photoUrl ?? this.photoUrl,
+        photoData: photoData ?? this.photoData,
         role: role ?? this.role,
         parkId: parkId ?? this.parkId,
         isAvailable: isAvailable ?? this.isAvailable,
@@ -124,6 +132,7 @@ class AppUser extends Equatable {
         'gender': gender?.wire,
         'dateOfBirth': dateOfBirth?.toIso8601String(),
         'photoUrl': photoUrl,
+        'photoData': photoData,
         'role': role.wire,
         'parkId': parkId,
         'isAvailable': isAvailable,
@@ -141,6 +150,7 @@ class AppUser extends Equatable {
         gender: parseEnumOrNull(Gender.values, map['gender']),
         dateOfBirth: _parseDate(map['dateOfBirth']),
         photoUrl: map['photoUrl'] as String? ?? '',
+        photoData: map['photoData'] as String? ?? '',
         role: parseEnum(UserRole.values, map['role'], fallback: UserRole.ranger),
         parkId: map['parkId'] as String? ?? '',
         isAvailable: map['isAvailable'] as bool? ?? true,
@@ -164,6 +174,7 @@ class AppUser extends Equatable {
         gender,
         dateOfBirth,
         photoUrl,
+        photoData,
         role,
         parkId,
         isAvailable,

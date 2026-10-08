@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../../core/enums/app_enums.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/providers/providers.dart';
 import '../providers/incident_providers.dart';
 import '../widgets/uc02_widgets.dart';
 
@@ -19,14 +20,30 @@ class IncidentReviewScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final form = ref.watch(incidentFormControllerProvider);
+    final ranger = ref.watch(currentUserProvider);
     // Keep the autoDispose submission provider alive while the awaited
     // submit() is in flight (the screen is the active listener).
-    ref.watch(incidentSubmissionProvider);
+    final submission = ref.watch(incidentSubmissionProvider);
     final controller = ref.read(incidentFormControllerProvider.notifier);
+
+    if (submission.status == SubmissionPhase.submitting) {
+      return const Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Submitting incident...'),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
-          title: const Text('Review Report'), leading: const BackButton()),
+          title: const Text('Review Incident'), leading: const BackButton()),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -36,7 +53,7 @@ class IncidentReviewScreen extends ConsumerWidget {
             label: 'Category',
             value: form.category?.label,
             missing: !form.categoryValid,
-            onEdit: () => context.go(AppRoutes.newIncident),
+            onEdit: () => context.push(AppRoutes.incidentType),
           ),
           _row(
             context,
@@ -46,7 +63,7 @@ class IncidentReviewScreen extends ConsumerWidget {
                 ? 'Photo attached'
                 : form.evidence.omissionReason,
             missing: !form.evidenceValid,
-            onEdit: () => context.go(AppRoutes.incidentEvidence),
+            onEdit: () => context.push(AppRoutes.incidentEvidence),
           ),
           _row(
             context,
@@ -58,7 +75,7 @@ class IncidentReviewScreen extends ConsumerWidget {
                     '(${form.locationSource == LocationSource.gps ? 'GPS' : 'Manual'})'
                 : null,
             missing: !form.locationValid,
-            onEdit: () => context.go(AppRoutes.incidentLocation),
+            onEdit: () => context.push(AppRoutes.incidentLocation),
           ),
           _row(
             context,
@@ -68,7 +85,7 @@ class IncidentReviewScreen extends ConsumerWidget {
                 ? null
                 : DateFormat('dd MMM yyyy, HH:mm').format(form.observedAt!),
             missing: false,
-            onEdit: () => context.go(AppRoutes.incidentLocation),
+            onEdit: () => context.push(AppRoutes.incidentLocation),
           ),
           _row(
             context,
@@ -76,7 +93,51 @@ class IncidentReviewScreen extends ConsumerWidget {
             label: 'Description',
             value: form.hasDescription ? form.description.trim() : null,
             missing: !form.descriptionValid,
-            onEdit: () => context.go(AppRoutes.incidentLocation),
+            onEdit: () => context.push(AppRoutes.incidentLocation),
+          ),
+          if (form.evidence.evidence?.bytes != null)
+            EvidencePreview(bytes: form.evidence.evidence!.bytes),
+          _row(
+            context,
+            icon: Icons.my_location,
+            label: 'Latitude',
+            value: form.latitude?.toStringAsFixed(5),
+            missing: form.latitude == null,
+            onEdit: () => context.push(AppRoutes.incidentLocation),
+          ),
+          _row(
+            context,
+            icon: Icons.my_location,
+            label: 'Longitude',
+            value: form.longitude?.toStringAsFixed(5),
+            missing: form.longitude == null,
+            onEdit: () => context.push(AppRoutes.incidentLocation),
+          ),
+          _row(
+            context,
+            icon: Icons.access_time,
+            label: 'Capture time',
+            value: form.gpsCapturedAt == null
+                ? null
+                : DateFormat('dd MMM yyyy, HH:mm').format(form.gpsCapturedAt!),
+            missing: form.gpsCapturedAt == null,
+            onEdit: () => context.push(AppRoutes.incidentLocation),
+          ),
+          _row(
+            context,
+            icon: Icons.person,
+            label: 'Ranger',
+            value: ranger.name,
+            missing: ranger.id.isEmpty,
+            onEdit: () {},
+          ),
+          _row(
+            context,
+            icon: Icons.directions_walk,
+            label: 'Patrol',
+            value: form.patrolId,
+            missing: !form.patrolValid,
+            onEdit: () {},
           ),
           if (!form.readyToSubmit) ...[
             const SizedBox(height: 8),
@@ -94,7 +155,7 @@ class IncidentReviewScreen extends ConsumerWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      _missingText(form),
+                      _missingText(form, hasRanger: ranger.id.isNotEmpty),
                       style: const TextStyle(fontSize: 13),
                     ),
                   ),
@@ -108,7 +169,7 @@ class IncidentReviewScreen extends ConsumerWidget {
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: PrimaryActionButton(
-            label: 'Submit Report',
+            label: 'Submit Incident',
             icon: Icons.send,
             onPressed: !form.readyToSubmit
                 ? null
@@ -127,8 +188,8 @@ class IncidentReviewScreen extends ConsumerWidget {
     final submitted = await ref.read(incidentSubmissionProvider.notifier).submit();
     if (!context.mounted) return;
     final state = ref.read(incidentSubmissionProvider);
-    controller.reset();
     if (submitted && state.reportId != null) {
+      controller.reset();
       context.pushReplacement(AppRoutes.incidentResultFor(state.reportId!));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -137,13 +198,8 @@ class IncidentReviewScreen extends ConsumerWidget {
     }
   }
 
-  String _missingText(IncidentFormState form) {
-    final missing = <String>[
-      if (!form.categoryValid) 'category',
-      if (!form.evidenceValid) 'photo or omission reason',
-      if (!form.locationValid) 'location',
-      if (!form.descriptionValid) 'description',
-    ];
+  String _missingText(IncidentFormState form, {required bool hasRanger}) {
+    final missing = form.missingLabels(hasRanger: hasRanger);
     return 'Missing: ${missing.join(', ')}. The report cannot be submitted yet — '
         'your entries are kept.';
   }
