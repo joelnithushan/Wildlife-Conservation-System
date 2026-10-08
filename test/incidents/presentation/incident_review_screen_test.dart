@@ -85,9 +85,11 @@ void main() {
     await tester.pumpAndSettle();
 
     // Submission succeeded locally: the result screen shows the offline state.
-    expect(find.text('Report submitted'), findsOneWidget);
-    expect(find.text('Offline – saved on this device. It will synchronize '
-        'automatically when the signal returns.'), findsOneWidget);
+    expect(find.text('Pending Synchronisation'), findsOneWidget);
+    expect(
+        find.textContaining(
+            'Your incident will synchronize when connectivity returns.'),
+        findsOneWidget);
     expect(find.textContaining('Reference: IR-'), findsOneWidget);
     expect(find.text('Retry sync now'), findsOneWidget);
   });

@@ -241,9 +241,9 @@ void main() {
       expect(form.readyToSubmit, isFalse);
     });
 
-    test('a description longer than 280 characters is not valid', () {
+    test('a description longer than 160 characters is not valid', () {
       fillAll();
-      controller().setDescription('x' * 281);
+      controller().setDescription('x' * 161);
       expect(
           container.read(incidentFormControllerProvider).descriptionValid,
           isFalse);

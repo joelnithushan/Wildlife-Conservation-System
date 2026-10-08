@@ -57,18 +57,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Report submitted'), findsOneWidget);
+    expect(find.text('Pending Synchronisation'), findsWidgets);
     // The submission provider is fresh here, so the reference falls back to
     // the stable report ID (the wizard flow shows the IR- short form).
     expect(find.textContaining('Reference: '), findsOneWidget);
-    expect(find.text('Submitted'), findsOneWidget);
+    expect(find.text('SUBMITTED'), findsOneWidget);
     expect(find.text('Pending'), findsOneWidget); // sync status chip
     expect(find.text('Pending review'), findsOneWidget); // review status chip
-    expect(find.textContaining('Offline – saved on this device.'),
-        findsOneWidget);
-    // The banner text and the caption both mention automatic synchronization.
     expect(
-        find.textContaining('synchronize automatically'), findsExactly(2));
+        find.textContaining(
+            'Your incident will synchronize when connectivity returns.'),
+        findsOneWidget);
     expect(find.text('Retry sync now'), findsOneWidget);
   });
 
@@ -95,10 +94,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Report submitted'), findsOneWidget);
+    expect(find.text('Incident Submitted'), findsOneWidget);
+    expect(find.text('SYNCHRONISED'), findsOneWidget);
     expect(find.text('Synchronized'), findsOneWidget);
     expect(find.text('Retry sync now'), findsNothing);
-    expect(find.textContaining('Offline – saved on this device.'),
-        findsNothing);
+    expect(find.text('Continue Patrol'), findsOneWidget);
   });
 }

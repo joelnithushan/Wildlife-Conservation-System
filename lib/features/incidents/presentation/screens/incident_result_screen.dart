@@ -32,6 +32,7 @@ class IncidentResultScreen extends ConsumerStatefulWidget {
 
 class _IncidentResultScreenState extends ConsumerState<IncidentResultScreen> {
   StreamSubscription<SyncPhase>? _phaseSub;
+  StreamSubscription<bool>? _connectionSub;
   bool _retrying = false;
 
   @override
@@ -46,10 +47,20 @@ class _IncidentResultScreenState extends ConsumerState<IncidentResultScreen> {
       ref.invalidate(selectedIncidentProvider(widget.reportId));
       ref.invalidate(pendingIncidentsProvider);
     });
+    _connectionSub =
+        ref.read(connectivityServiceProvider).connectionChanges.listen((online) {
+      if (!online || _retrying) return;
+      final current =
+          ref.read(selectedIncidentProvider(widget.reportId)).asData?.value;
+      if (current != null && current.syncState != SyncState.synchronized) {
+        _retry();
+      }
+    });
   }
   @override
   void dispose() {
     _phaseSub?.cancel();
+    _connectionSub?.cancel();
     super.dispose();
   }
 
@@ -66,10 +77,12 @@ class _IncidentResultScreenState extends ConsumerState<IncidentResultScreen> {
   Widget build(BuildContext context) {
     final reportAsync = ref.watch(selectedIncidentProvider(widget.reportId));
     final submission = ref.watch(incidentSubmissionProvider);
+    final pending =
+        ref.watch(pendingIncidentsProvider).asData?.value.length;
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Report Submitted'),
+        title: const Text('Incident status'),
         leading: const BackButton(),
       ),
       body: reportAsync.when(
@@ -83,14 +96,29 @@ class _IncidentResultScreenState extends ConsumerState<IncidentResultScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               const SizedBox(height: 8),
-              const Icon(Icons.check_circle, color: AppColors.success, size: 72),
+              Icon(
+                report.syncState == SyncState.synchronized
+                    ? Icons.cloud_done
+                    : Icons.cloud_off,
+                color: report.syncState == SyncState.synchronized
+                    ? AppColors.success
+                    : const Color(0xFFD97706),
+                size: 72,
+              ),
               const SizedBox(height: 12),
-              const Center(
+              Center(
                 child: Text(
-                  'Report submitted',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
+                  report.syncState == SyncState.synchronized
+                      ? 'Incident Submitted'
+                      : 'Pending Synchronisation',
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
                 ),
               ),
+              if (_retrying)
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text('Connection restored · synchronizing...'),
+                ),
               const SizedBox(height: 4),
               Center(
                 child: Text(
@@ -107,7 +135,7 @@ class _IncidentResultScreenState extends ConsumerState<IncidentResultScreen> {
                       _statusRow(
                         'Submission status',
                         const StatusChip(
-                            label: 'Submitted',
+                            label: 'SUBMITTED',
                             tone: StatusTone.success,
                             icon: Icons.send),
                       ),
@@ -126,14 +154,21 @@ class _IncidentResultScreenState extends ConsumerState<IncidentResultScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              if (report.syncState != SyncState.synchronized) ...[
-                OfflineSavedBanner(),
-                const SizedBox(height: 8),
-                const Text(
-                  'It will synchronize automatically when the signal returns.',
-                  style: TextStyle(fontSize: 12, color: Colors.grey),
-                  textAlign: TextAlign.center,
+              if (report.syncState == SyncState.synchronized)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.check_circle, color: AppColors.success),
+                      SizedBox(width: 8),
+                      Text('SYNCHRONISED',
+                          style: TextStyle(fontWeight: FontWeight.w700)),
+                    ],
+                  ),
                 ),
+              if (report.syncState != SyncState.synchronized) ...[
+                OfflineSavedBanner(pendingCount: pending),
                 const SizedBox(height: 12),
                 OutlinedButton.icon(
                   onPressed: _retrying ? null : _retry,
@@ -149,10 +184,20 @@ class _IncidentResultScreenState extends ConsumerState<IncidentResultScreen> {
               const SizedBox(height: 20),
               _ReportSummary(report: report),
               const SizedBox(height: 16),
-              OutlinedButton.icon(
+              PrimaryActionButton(
+                label: 'OK',
+                icon: Icons.check,
                 onPressed: () => context.go(AppRoutes.incidents),
-                icon: const Icon(Icons.list),
-                label: const Text('My incident reports'),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                height: 52,
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => context.go(AppRoutes.patrol),
+                  icon: const Icon(Icons.directions_walk),
+                  label: const Text('Continue Patrol'),
+                ),
               ),
             ],
           );

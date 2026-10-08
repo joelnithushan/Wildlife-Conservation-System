@@ -3,7 +3,7 @@
 /// The wizard, review screen, and submission use case all ask this class what
 /// is still missing so a ranger sees the same list everywhere.
 abstract final class FieldIncidentDraft {
-  static const int descriptionMaxLength = 280;
+  static const int descriptionMaxLength = 160;
 
   /// Labels the ranger picks from. Persistence still uses the shared category.
   static const List<String> incidentTypeLabels = [

@@ -38,7 +38,7 @@ void main() {
     // The photo slot renders with a retake action (the file itself does not
     // exist in the test environment, so the image shows its error frame).
     await tester.pump(const Duration(milliseconds: 100));
-    expect(find.text('Change photo'), findsOneWidget);
+    expect(find.text('Retake'), findsOneWidget);
     expect(find.byType(Image), findsOneWidget);
     expect(find.byKey(const Key('omission-reason-field')), findsNothing);
     expect(find.text("Can't take a photo safely?"), findsNothing);
@@ -63,12 +63,12 @@ void main() {
     await pumpUc02Screen(tester, const SizedBox.shrink(), container: c,
         initialLocation: AppRoutes.incidentEvidence);
 
-    await tester.tap(find.text('Next'));
+    await tester.tap(find.text('Continue'));
     await tester.pump();
 
     expect(find.text('Add a photo or a reason for taking none to continue.'),
         findsOneWidget);
-    expect(find.text('Location & Description'), findsNothing);
+    expect(find.text('Incident Details'), findsNothing);
   });
 
   testWidgets('omission reason alone unblocks Next (no photo required)',
@@ -84,10 +84,10 @@ void main() {
         'Unsafe to approach the snare location.');
     await tester.pump();
 
-    await tester.tap(find.text('Next'));
+    await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Location & Description'), findsOneWidget);
+    expect(find.text('Incident Details'), findsOneWidget);
     expect(
       c.read(incidentFormControllerProvider).evidence.omissionReason,
       'Unsafe to approach the snare location.',
@@ -106,7 +106,7 @@ void main() {
         find.byKey(const Key('omission-reason-field')), '   ');
     await tester.pump();
 
-    await tester.tap(find.text('Next'));
+    await tester.tap(find.text('Continue'));
     await tester.pump();
 
     expect(find.text('Add a photo or a reason for taking none to continue.'),
@@ -120,7 +120,7 @@ void main() {
     await pumpUc02Screen(tester, const SizedBox.shrink(), container: c,
         initialLocation: AppRoutes.incidentEvidence);
 
-    expect(find.text('Camera'), findsOneWidget);
+    expect(find.text('Capture Photo'), findsOneWidget);
     expect(find.text('Gallery'), findsOneWidget);
   });
 }
