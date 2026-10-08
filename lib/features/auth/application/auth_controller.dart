@@ -68,8 +68,13 @@ class AuthController extends Notifier<AuthSession> {
 
   // --- Interactive actions ------------------------------------------------
 
-  /// Signs in with email + password. Returns `null` on success or the
-  /// [AuthFailure] to display on the login screen.
+  /// Signs in with password and an identifier that is either an email address
+  /// or a WildGuard [username] (e.g. `ranger_kumar_001`). A username is resolved
+  /// to its account email via Firestore before authenticating. The admin signs
+  /// in by email. Returns `null` on success or the [AuthFailure] to display.
+  ///
+  /// The parameter is named [email] for backwards-compatibility but accepts an
+  /// email *or* a username (anything without `@` is treated as a username).
   Future<AuthFailure?> signIn({
     required String email,
     required String password,
@@ -79,7 +84,20 @@ class AuthController extends Notifier<AuthSession> {
 
     state = const AuthLoadingProfile();
     try {
-      final identity = await auth.signIn(email: email, password: password);
+      var loginEmail = email.trim();
+      // No `@` → treat as a username and look up the linked email.
+      if (!loginEmail.contains('@')) {
+        final repo = ref.read(userRepositoryProvider);
+        final resolved = await repo?.findEmailByUsername(loginEmail);
+        if (resolved == null) {
+          // Don't reveal whether the username exists.
+          state = const AuthUnauthenticated(
+              failure: AuthFailure.invalidCredentials);
+          return AuthFailure.invalidCredentials;
+        }
+        loginEmail = resolved;
+      }
+      final identity = await auth.signIn(email: loginEmail, password: password);
       return await _loadProfile(identity, treatErrorAsProfileIssue: false);
     } on AuthException catch (e) {
       state = AuthUnauthenticated(failure: e.failure);

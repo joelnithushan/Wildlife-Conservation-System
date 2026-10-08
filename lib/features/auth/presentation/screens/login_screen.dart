@@ -1,4 +1,3 @@
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -52,10 +51,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     super.dispose();
   }
 
+  /// Accepts either an email address or a WildGuard username. If the value
+  /// contains `@` it must look like a valid email; otherwise it is treated as a
+  /// username and only needs to be non-empty.
   String? _validateEmail(String? v) {
-    final email = v?.trim() ?? '';
-    if (email.isEmpty) return 'Email is required.';
-    if (!RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$').hasMatch(email)) {
+    final identifier = v?.trim() ?? '';
+    if (identifier.isEmpty) return 'Email or username is required.';
+    if (identifier.contains('@') &&
+        !RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$').hasMatch(identifier)) {
       return 'Enter a valid email address.';
     }
     return null;
@@ -276,16 +279,16 @@ class _LoginPanel extends StatelessWidget {
                     const SizedBox(height: 12),
                   ],
 
-                  // Email
-                  const _FieldLabel('Email Address'),
+                  // Email or username
+                  const _FieldLabel('Email or Username'),
                   const SizedBox(height: 7),
                   _AuthTextField(
                     controller: emailCtrl,
-                    hint: 'Enter your email',
-                    prefixIcon: Icons.mail_outline_rounded,
+                    hint: 'Email or username',
+                    prefixIcon: Icons.person_outline_rounded,
                     keyboardType: TextInputType.emailAddress,
                     textInputAction: TextInputAction.next,
-                    autofillHints: const [AutofillHints.email],
+                    autofillHints: const [AutofillHints.username],
                     enabled: !submitting,
                     validator: validateEmail,
                   ),
@@ -342,11 +345,14 @@ class _LoginPanel extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            const Text(
-                              'Remember me',
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: _C.textMain,
+                            const Flexible(
+                              child: Text(
+                                'Remember me',
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: _C.textMain,
+                                ),
                               ),
                             ),
                           ],
@@ -381,14 +387,6 @@ class _LoginPanel extends StatelessWidget {
                     onPressed: submitting ? null : onSubmit,
                     loading: submitting,
                   ),
-                  const SizedBox(height: 10),
-
-                  // OR divider
-                  const _OrDivider(),
-                  const SizedBox(height: 8),
-
-                  // Google button
-                  const _GoogleButton(),
                 ],
               ),
             ),
@@ -569,101 +567,6 @@ class _PrimarySignInButton extends StatelessWidget {
                 ),
         ),
       );
-}
-
-class _OrDivider extends StatelessWidget {
-  const _OrDivider();
-
-  @override
-  Widget build(BuildContext context) => Row(
-        children: [
-          const Expanded(child: Divider(color: Color(0xFFD5DDDA))),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Text(
-              'OR',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.grey[500],
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ),
-          const Expanded(child: Divider(color: Color(0xFFD5DDDA))),
-        ],
-      );
-}
-
-class _GoogleButton extends StatelessWidget {
-  const _GoogleButton();
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-        height: 50,
-        child: OutlinedButton(
-          onPressed: () {},
-          style: OutlinedButton.styleFrom(
-            backgroundColor: Colors.white,
-            side: const BorderSide(color: Color(0xFFD5DBD8), width: 1.2),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CustomPaint(painter: _GoogleLogoPainter()),
-              ),
-              const SizedBox(width: 12),
-              const Text(
-                'Continue with Google',
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF202428),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-}
-
-class _GoogleLogoPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final cx = size.width / 2;
-    final cy = size.height / 2;
-    final r = size.width / 2;
-    final p = Paint()..style = PaintingStyle.fill;
-
-    const segments = [
-      (Color(0xFF4285F4), -math.pi / 2, math.pi / 2),
-      (Color(0xFFEA4335), -math.pi,     math.pi / 2),
-      (Color(0xFFFBBC05),  math.pi / 2, math.pi / 2),
-      (Color(0xFF34A853),  0.0,          math.pi / 2),
-    ];
-    for (final (color, start, sweep) in segments) {
-      p.color = color;
-      canvas.drawArc(
-        Rect.fromCircle(center: Offset(cx, cy), radius: r),
-        start, sweep, true, p,
-      );
-    }
-    p.color = Colors.white;
-    canvas.drawCircle(Offset(cx, cy), r * 0.58, p);
-    p.color = const Color(0xFF4285F4);
-    canvas.drawRect(
-      Rect.fromLTWH(cx - r * 0.05, cy - r * 0.17, r * 0.95, r * 0.34),
-      p,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
 class _ConservationFooter extends StatelessWidget {

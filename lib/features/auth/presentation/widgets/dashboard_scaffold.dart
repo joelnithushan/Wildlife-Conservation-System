@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/enums/app_enums.dart';
-import '../../../../core/routing/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/role_nav.dart';
 import '../../../../shared/demo/demo_data.dart';
 import '../../../../shared/models/app_user.dart';
 
@@ -37,14 +36,8 @@ class DashboardScaffold extends ConsumerWidget {
       appBar: AppBar(
         title: const Text('WildGuard'),
         automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            tooltip: 'Account',
-            icon: const Icon(Icons.account_circle_outlined),
-            onPressed: () => context.push(AppRoutes.profile),
-          ),
-        ],
       ),
+      bottomNavigationBar: const WildGuardNavBar(),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(16),
