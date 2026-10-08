@@ -127,7 +127,7 @@ void main() {
     await tester.pump();
 
     expect(find.text('A description is required to continue.'), findsOneWidget);
-    expect(find.text('Review Report'), findsNothing); // never navigated
+    expect(find.text('Review Incident'), findsNothing); // never navigated
   });
 
   testWidgets('description + location unlocks Review report', (tester) async {
@@ -147,7 +147,7 @@ void main() {
     await tester.tap(find.text('Review report'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Review Report'), findsOneWidget);
+    expect(find.text('Review Incident'), findsOneWidget);
     expect(find.text('Wire snare found'), findsOneWidget);
   });
 }
