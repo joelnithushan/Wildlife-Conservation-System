@@ -23,6 +23,10 @@ void main() {
       expect(AccessPolicy.homeRoute(UserRole.conservationResearcher),
           AppRoutes.researcherDashboard);
     });
+
+    test('15. Admin lands on the Admin Dashboard', () {
+      expect(AccessPolicy.homeRoute(UserRole.admin), AppRoutes.adminDashboard);
+    });
   });
 
   group('AccessPolicy.canAccess (role guards)', () {
@@ -83,6 +87,42 @@ void main() {
       for (final role in UserRole.values) {
         expect(AccessPolicy.canAccess(role, AppRoutes.profile), isTrue);
         expect(AccessPolicy.canAccess(role, AppRoutes.accessDenied), isTrue);
+      }
+    });
+
+    test('Admin may open the account-management routes', () {
+      expect(AccessPolicy.canAccess(UserRole.admin, AppRoutes.adminDashboard),
+          isTrue);
+      expect(AccessPolicy.canAccess(UserRole.admin, AppRoutes.adminUserNew),
+          isTrue);
+      expect(
+          AccessPolicy.canAccess(
+              UserRole.admin, AppRoutes.adminUserEditFor('u1')),
+          isTrue);
+    });
+
+    test('Admin is blocked from business-use-case routes', () {
+      for (final loc in [
+        AppRoutes.assignPatrol,
+        AppRoutes.patrol,
+        AppRoutes.incidents,
+        AppRoutes.conflictResponse,
+        AppRoutes.analytics,
+      ]) {
+        expect(AccessPolicy.canAccess(UserRole.admin, loc), isFalse,
+            reason: 'admin should not access $loc');
+      }
+    });
+
+    test('Non-admin roles are blocked from the admin console', () {
+      for (final role in [
+        UserRole.parkManager,
+        UserRole.ranger,
+        UserRole.communityLiaisonOfficer,
+        UserRole.conservationResearcher,
+      ]) {
+        expect(AccessPolicy.canAccess(role, AppRoutes.adminDashboard), isFalse,
+            reason: '$role should not access the admin console');
       }
     });
   });
