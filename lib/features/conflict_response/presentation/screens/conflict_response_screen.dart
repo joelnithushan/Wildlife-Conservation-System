@@ -6,6 +6,7 @@ import '../../../../core/enums/app_enums.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/demo/demo_data.dart';
+import '../../../../shared/models/wildlife_risk_alert.dart';
 import '../../../../shared/session/current_user.dart';
 import '../../../auth/domain/access_policy.dart';
 import '../providers/conflict_providers.dart';
@@ -27,22 +28,45 @@ class _ConflictResponseScreenState
     extends ConsumerState<ConflictResponseScreen> {
   AlertStatus? _filter;
 
-  Future<void> _runTrigger(Future<void> Function() action) async {
+  Future<void> _runTrigger(Future<WildlifeRiskAlert?> Function() action) async {
     try {
-      await action();
-      if (mounted) _snack('Reading processed.');
+      final alert = await action();
+      if (mounted && alert != null) {
+        // Instantly navigate to the details screen so they can assign a responder!
+        context.push(AppRoutes.alertDetailsFor(alert.id));
+      } else if (mounted) {
+        _showPopup('Result', 'No new alert was generated.');
+      }
     } catch (e) {
-      if (mounted) _snack('$e', error: true);
+      // Clean up the exception string if it starts with "Exception:"
+      final msg = e.toString().replaceFirst('Exception: ', '');
+      if (mounted) _showPopup('Simulation Result', msg, error: true);
     }
   }
 
-  void _snack(String message, {bool error = false}) {
-    ScaffoldMessenger.of(context)
-      ..clearSnackBars()
-      ..showSnackBar(SnackBar(
+  void _showPopup(String title, String message, {bool error = false}) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              error ? Icons.warning_amber_rounded : Icons.check_circle_outline,
+              color: error ? AppColors.error : AppColors.primary,
+            ),
+            const SizedBox(width: 8),
+            Text(title),
+          ],
+        ),
         content: Text(message),
-        backgroundColor: error ? AppColors.error : null,
-      ));
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -126,21 +150,28 @@ class _ConflictResponseScreenState
   }
 
   void _onSimulate(_SimAction action) {
-    final controller = ref.read(conflictControllerProvider.notifier);
-    final animalId = DemoData.trackedAnimals.first.id;
+    // For demo purposes: instantly pop up an alert from the list
+    // so the user can assign a responder right away.
+    final user = ref.read(currentUserProvider);
+    final alerts = ref.read(riskAlertsProvider(user.parkId)).asData?.value ?? [];
+    
+    WildlifeRiskAlert? targetAlert;
+
     switch (action) {
       case _SimAction.insideZone:
-        _runTrigger(() => controller.simulateCollarReading(
-              animalId: animalId,
-              latitude: DemoData.insideRiskZonePoint.latitude,
-              longitude: DemoData.insideRiskZonePoint.longitude,
-            ));
+        // Pop up the High Risk alert for the inside zone demo
+        targetAlert = alerts.where((a) => a.severity == AlertSeverity.high).firstOrNull;
+        break;
       case _SimAction.outsideZone:
-        _runTrigger(() => controller.simulateCollarReading(
-              animalId: animalId,
-              latitude: DemoData.outsideRiskZonePoint.latitude,
-              longitude: DemoData.outsideRiskZonePoint.longitude,
-            ));
+        // Pop up a different (Medium Risk) alert for the outside zone demo
+        targetAlert = alerts.where((a) => a.severity == AlertSeverity.medium).firstOrNull;
+        break;
+    }
+    
+    if (targetAlert != null) {
+      context.push(AppRoutes.alertDetailsFor(targetAlert.id));
+    } else {
+      _showPopup('Result', 'No matching alerts found in the list.');
     }
   }
 }
@@ -165,11 +196,13 @@ class _SimulateButton extends StatelessWidget {
           child: Text('Collar reading outside risk zone'),
         ),
       ],
-      child: FloatingActionButton.extended(
-        onPressed: null,
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.sensors, color: Colors.white),
-        label: const Text('Simulate', style: TextStyle(color: Colors.white)),
+      child: IgnorePointer(
+        child: FloatingActionButton.extended(
+          onPressed: () {},
+          backgroundColor: AppColors.primary,
+          icon: const Icon(Icons.sensors, color: Colors.white),
+          label: const Text('Simulate', style: TextStyle(color: Colors.white)),
+        ),
       ),
     );
   }
