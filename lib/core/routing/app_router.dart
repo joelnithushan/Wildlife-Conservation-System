@@ -28,6 +28,7 @@ import '../../features/incidents/presentation/screens/incident_result_screen.dar
 import '../../features/incidents/presentation/screens/incident_review_detail_screen.dart';
 import '../../features/incidents/presentation/screens/incident_review_queue_screen.dart';
 import '../../features/incidents/presentation/screens/incident_review_screen.dart';
+import '../../features/incidents/presentation/screens/incident_type_screen.dart';
 import '../../features/incidents/presentation/screens/incidents_screen.dart';
 import '../../features/incidents/presentation/screens/new_incident_screen.dart';
 import '../../features/onboarding/presentation/providers/onboarding_providers.dart';
@@ -86,6 +87,7 @@ abstract final class AppRoutes {
 
   // UC02 incident flow (outside the bottom-nav shell for the wizard).
   static const newIncident = '/incidents/new';
+  static const incidentType = '/incidents/new/type';
   static const incidentEvidence = '/incidents/new/evidence';
   static const incidentLocation = '/incidents/new/location';
   static const incidentReview = '/incidents/new/review';
@@ -296,6 +298,10 @@ GoRouter appRouter(Ref ref) {
       GoRoute(
         path: AppRoutes.newIncident,
         builder: (context, state) => const NewIncidentScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.incidentType,
+        builder: (context, state) => const IncidentTypeScreen(),
       ),
       GoRoute(
         path: AppRoutes.incidentEvidence,

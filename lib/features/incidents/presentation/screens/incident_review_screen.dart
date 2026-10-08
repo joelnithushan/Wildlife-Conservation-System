@@ -23,8 +23,23 @@ class IncidentReviewScreen extends ConsumerWidget {
     final ranger = ref.watch(currentUserProvider);
     // Keep the autoDispose submission provider alive while the awaited
     // submit() is in flight (the screen is the active listener).
-    ref.watch(incidentSubmissionProvider);
+    final submission = ref.watch(incidentSubmissionProvider);
     final controller = ref.read(incidentFormControllerProvider.notifier);
+
+    if (submission.status == SubmissionPhase.submitting) {
+      return const Scaffold(
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Submitting incident...'),
+            ],
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -38,7 +53,7 @@ class IncidentReviewScreen extends ConsumerWidget {
             label: 'Category',
             value: form.category?.label,
             missing: !form.categoryValid,
-            onEdit: () => context.push(AppRoutes.newIncident),
+            onEdit: () => context.push(AppRoutes.incidentType),
           ),
           _row(
             context,

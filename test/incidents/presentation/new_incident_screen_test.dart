@@ -6,8 +6,8 @@ import 'package:wildlife_conservation_system/features/incidents/domain/incident_
 import '../helpers.dart';
 
 void main() {
-  // UC02 Screen 1 – New Incident Report (category selection).
-  testWidgets('shows all five incident categories', (tester) async {
+  testWidgets('start screen shows patrol context and incident examples',
+      (tester) async {
     final container = ProviderContainer(overrides: [
       appDatabaseProvider.overrideWith((ref) => createIncidentTestDatabase()),
     ]);
@@ -16,18 +16,32 @@ void main() {
     await pumpUc02Screen(tester, const SizedBox.shrink(), container: container,
         initialLocation: AppRoutes.newIncident);
 
-    expect(find.text('Incident Type'), findsOneWidget);
-    for (final category in IncidentReportCategory.values) {
-      expect(find.text(category.label), findsOneWidget);
-    }
+    expect(find.text('New Field Incident'), findsOneWidget);
+    expect(find.text('Report Field Incident'), findsOneWidget);
     expect(find.text('Snare'), findsOneWidget);
     expect(find.text('Carcass'), findsOneWidget);
     expect(find.text('Illegal Campsite'), findsOneWidget);
     expect(find.text('Footprints'), findsOneWidget);
+    expect(find.text('Start Report'), findsOneWidget);
+  });
+
+  testWidgets('Start Report opens incident type selection', (tester) async {
+    final container = ProviderContainer(overrides: [
+      appDatabaseProvider.overrideWith((ref) => createIncidentTestDatabase()),
+    ]);
+    addTearDown(container.dispose);
+
+    await pumpUc02Screen(tester, const SizedBox.shrink(), container: container,
+        initialLocation: AppRoutes.newIncident);
+
+    await tester.tap(find.text('Start Report'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('What did you find?'), findsOneWidget);
     expect(find.text('Other'), findsOneWidget);
   });
 
-  testWidgets('Next without a category shows the validation message',
+  testWidgets('Continue without a type shows the validation message',
       (tester) async {
     final container = ProviderContainer(overrides: [
       appDatabaseProvider.overrideWith((ref) => createIncidentTestDatabase()),
@@ -35,16 +49,16 @@ void main() {
     addTearDown(container.dispose);
 
     await pumpUc02Screen(tester, const SizedBox.shrink(), container: container,
-        initialLocation: AppRoutes.newIncident);
+        initialLocation: AppRoutes.incidentType);
 
-    await tester.tap(find.text('Next'));
+    await tester.tap(find.text('Continue'));
     await tester.pump();
 
     expect(find.text('Select a category to continue.'), findsOneWidget);
-    expect(find.text('Evidence'), findsNothing); // never navigated
+    expect(find.text('Incident Photo'), findsNothing);
   });
 
-  testWidgets('selecting a category stores it and Next advances to Evidence',
+  testWidgets('selecting a type stores it and Continue opens the photo step',
       (tester) async {
     final container = ProviderContainer(overrides: [
       appDatabaseProvider.overrideWith((ref) => createIncidentTestDatabase()),
@@ -52,7 +66,7 @@ void main() {
     addTearDown(container.dispose);
 
     await pumpUc02Screen(tester, const SizedBox.shrink(), container: container,
-        initialLocation: AppRoutes.newIncident);
+        initialLocation: AppRoutes.incidentType);
 
     await tester.tap(find.text('Carcass'));
     await tester.pump();
@@ -61,21 +75,21 @@ void main() {
       IncidentReportCategory.carcass,
     );
 
-    await tester.tap(find.text('Next'));
+    await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Capture Photograph'), findsOneWidget);
-    expect(find.byIcon(Icons.photo_camera), findsOneWidget);
+    expect(find.text('Incident Photo'), findsOneWidget);
+    expect(find.text('Capture Photo'), findsOneWidget);
   });
 
-  testWidgets('re-selecting replaces the previous category', (tester) async {
+  testWidgets('re-selecting replaces the previous type', (tester) async {
     final container = ProviderContainer(overrides: [
       appDatabaseProvider.overrideWith((ref) => createIncidentTestDatabase()),
     ]);
     addTearDown(container.dispose);
 
     await pumpUc02Screen(tester, const SizedBox.shrink(), container: container,
-        initialLocation: AppRoutes.newIncident);
+        initialLocation: AppRoutes.incidentType);
 
     await tester.tap(find.text('Snare'));
     await tester.pump();

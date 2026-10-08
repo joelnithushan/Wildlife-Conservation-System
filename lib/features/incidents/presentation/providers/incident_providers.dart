@@ -40,9 +40,18 @@ final incidentRepositoryProvider = Provider<IncidentRepository>(
   (ref) => IncidentRepositoryImpl(ref.watch(incidentLocalDataSourceProvider)),
 );
 
+/// In-progress patrol shown on the field-incident start screen.
+class ActivePatrolSnapshot {
+  const ActivePatrolSnapshot({required this.id, required this.routeId});
+
+  final String id;
+  final String routeId;
+}
+
 /// In-progress patrol for the signed-in ranger, read from the patrol store.
 /// UC02 only consumes that store; it does not start or complete patrols.
-final activePatrolIdProvider = FutureProvider<String?>((ref) async {
+final activePatrolSnapshotProvider =
+    FutureProvider<ActivePatrolSnapshot?>((ref) async {
   final user = ref.watch(currentUserProvider);
   if (user.id.isEmpty) return null;
   final db = ref.watch(appDatabaseProvider);
@@ -50,9 +59,16 @@ final activePatrolIdProvider = FutureProvider<String?>((ref) async {
         ..where((t) => t.rangerId.equals(user.id)))
       .get();
   for (final row in rows) {
-    if (row.status == PatrolStatus.inProgress.wire) return row.id;
+    if (row.status == PatrolStatus.inProgress.wire) {
+      return ActivePatrolSnapshot(id: row.id, routeId: row.routeId);
+    }
   }
   return null;
+});
+
+final activePatrolIdProvider = FutureProvider<String?>((ref) async {
+  final snapshot = await ref.watch(activePatrolSnapshotProvider.future);
+  return snapshot?.id;
 });
 
 // ---------------------------------------------------------------------------

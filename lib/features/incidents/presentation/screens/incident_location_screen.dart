@@ -42,6 +42,12 @@ class _IncidentLocationScreenState
       _lngController.text = form.longitude!.toStringAsFixed(6);
     }
     _descriptionController.text = form.description;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final current = ref.read(incidentFormControllerProvider);
+      if (!current.hasLocation && !current.isLocating) {
+        ref.read(incidentFormControllerProvider.notifier).captureGpsLocation();
+      }
+    });
   }
 
   @override
@@ -59,7 +65,7 @@ class _IncidentLocationScreenState
 
     return Scaffold(
       appBar: AppBar(
-          title: const Text('Location & Description'),
+          title: const Text('Incident Details'),
           leading: const BackButton()),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -105,7 +111,11 @@ class _IncidentLocationScreenState
                 ),
               ),
             ),
-          if (form.isLocating) const LinearProgressIndicator(),
+          if (form.isLocating)
+            const Padding(
+              padding: EdgeInsets.only(top: 8),
+              child: Text('Capturing GPS...'),
+            ),
           if (form.gpsCapturedAt != null)
             Padding(
               padding: const EdgeInsets.only(top: 8),
@@ -167,7 +177,8 @@ class _IncidentLocationScreenState
             controller: _descriptionController,
             decoration: const InputDecoration(
               hintText: 'Wire snare found beside animal trail.',
-              helperText: 'Required. 280 characters at most.',
+              helperText: 'Required. 160 characters at most.',
+              labelText: 'Short description',
             ),
             maxLength: FieldIncidentDraft.descriptionMaxLength,
             minLines: 3,
@@ -175,6 +186,13 @@ class _IncidentLocationScreenState
             textInputAction: TextInputAction.done,
             onChanged: controller.setDescription,
           ),
+          if (form.evidence.hasPhoto)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const Icon(Icons.photo, color: AppColors.primary),
+              title: const Text('Photograph attached'),
+              subtitle: Text(form.evidence.evidence?.filename ?? 'Photo ready'),
+            ),
           const SizedBox(height: 8),
         ],
       ),
@@ -182,7 +200,7 @@ class _IncidentLocationScreenState
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: PrimaryActionButton(
-            label: 'Review report',
+            label: 'Continue',
             onPressed: !(form.hasLocation && form.hasDescription)
                 ? () {
                     ScaffoldMessenger.of(context).showSnackBar(

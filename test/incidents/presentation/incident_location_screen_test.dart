@@ -20,6 +20,7 @@ void main() {
 
   setUp(() {
     location = _MockLocationService();
+    when(() => location.getCurrentPosition()).thenThrow(Exception('no fix'));
   });
 
   Future<void> pump(WidgetTester tester, ProviderContainer c) =>
@@ -123,7 +124,7 @@ void main() {
     await tester.tap(find.text('Use current GPS location'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Review report'));
+    await tester.tap(find.text('Continue'));
     await tester.pump();
 
     expect(find.text('A description is required to continue.'), findsOneWidget);
@@ -144,7 +145,7 @@ void main() {
         find.byKey(const Key('description-field')), 'Wire snare found');
     await tester.pump();
 
-    await tester.tap(find.text('Review report'));
+    await tester.tap(find.text('Continue'));
     await tester.pumpAndSettle();
 
     expect(find.text('Review Incident'), findsOneWidget);
