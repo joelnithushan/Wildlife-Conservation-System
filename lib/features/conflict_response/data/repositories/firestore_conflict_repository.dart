@@ -302,12 +302,27 @@ class FirestoreConflictRepository implements ConflictRepository {
     required String responderId,
   }) async {
     final assignmentRef = _firestore.collection(FirestoreCollections.responseAssignments).doc(assignmentId);
-    
+
+    // Reject acknowledging an assignment that reassignment has superseded, to
+    // match InMemoryConflictRepository (§7: reassignment preserves history and
+    // only the active assignment drives the alert). Firestore transactions
+    // cannot run queries, so the active-assignment lookup happens just before
+    // the transaction; the transaction below still enforces responder + status.
+    final preDoc = await assignmentRef.get();
+    if (!preDoc.exists) throw const ConflictException('Assignment not found.');
+    final active =
+        await getActiveAssignment(ResponseAssignment.fromMap(preDoc.data()!).alertId);
+    if (active?.id != assignmentId) {
+      throw const ConflictException(
+        'This assignment has been superseded by a reassignment.',
+      );
+    }
+
     return await _firestore.runTransaction((tx) async {
       final doc = await tx.get(assignmentRef);
       if (!doc.exists) throw const ConflictException('Assignment not found.');
       final assignment = ResponseAssignment.fromMap(doc.data()!);
-      
+
       if (assignment.responderId != responderId) {
         throw const ConflictException('Only the assigned responder can acknowledge this assignment.');
       }
