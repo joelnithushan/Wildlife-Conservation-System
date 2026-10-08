@@ -1,6 +1,8 @@
 import 'dart:typed_data';
 
+import 'package:drift/drift.dart' hide isNull, isNotNull;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:wildlife_conservation_system/core/database/app_database.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mocktail/mocktail.dart';
 import 'package:wildlife_conservation_system/core/errors/exceptions.dart';
@@ -276,6 +278,8 @@ void main() {
       expect(stored!.syncState, SyncState.synchronized);
       expect(stored.reviewStatus, ReviewStatus.pendingReview);
       expect(stored.submissionStatus, SubmissionStatus.submitted);
+      expect(stored.rangerId, 'R001');
+      expect(stored.patrolId, 'patrol-active');
     });
 
     test('offline submission stores locally with pending sync state',
@@ -319,6 +323,32 @@ void main() {
           .read(incidentRepositoryProvider)
           .getIncident(submission.reportId!);
       expect(stored!.syncState, SyncState.pending);
+    });
+
+    test('an in-progress patrol from the patrol store is attached', () async {
+      final db = container.read(appDatabaseProvider);
+      await db.into(db.patrolsTable).insert(
+            PatrolsTableCompanion.insert(
+              id: 'patrol-live',
+              routeId: 'route-1',
+              rangerId: 'R001',
+              parkId: 'PARK-MIN',
+              scheduledFor: DateTime.utc(2026, 10, 8),
+              assignedAt: DateTime.utc(2026, 10, 8),
+              status: const Value('inProgress'),
+            ),
+          );
+      fillAll(skip: 'patrol');
+
+      final ok =
+          await container.read(incidentSubmissionProvider.notifier).submit();
+
+      expect(ok, isTrue);
+      final stored = await container.read(incidentRepositoryProvider).getIncident(
+            container.read(incidentSubmissionProvider).reportId!,
+          );
+      expect(stored!.patrolId, 'patrol-live');
+      expect(stored.rangerId, 'R001');
     });
 
     test('invalid form never creates a report (duplicate-retry safety)',
