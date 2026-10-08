@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "5555660917",
+    "project_id": "wildlife-conservation-sy-d3b68",
+    "storage_bucket": "wildlife-conservation-sy-d3b68.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:5555660917:android:8799e9f523f02b2371703c",
+        "android_client_info": {
+          "package_name": "com.wildlife.wildlife_conservation_system"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAGwWS3VOq2-JBnNKB1iABeuB-rmKLA3Fs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
