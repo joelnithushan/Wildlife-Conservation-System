@@ -135,6 +135,17 @@ class IncidentFormState {
       descriptionValid &&
       patrolValid;
 
+  List<String> missingLabels({required bool hasRanger}) =>
+      FieldIncidentDraft.missing(
+        hasIncidentType: categoryValid,
+        hasPhotograph: evidenceValid,
+        hasLocation: locationValid,
+        hasCaptureTime: captureTimeValid,
+        description: description,
+        hasRanger: hasRanger,
+        hasActivePatrol: patrolValid,
+      );
+
   IncidentFormState copyWith({
     IncidentReportCategory? category,
     IncidentEvidenceState? evidence,
@@ -325,9 +336,12 @@ class IncidentSubmissionController extends Notifier<IncidentSubmissionState> {
 
     final ready = ref.read(incidentFormControllerProvider);
     if (!ready.readyToSubmit) {
-      state = const IncidentSubmissionState(
+      final missing = ready.missingLabels(hasRanger: user.id.isNotEmpty);
+      state = IncidentSubmissionState(
         status: SubmissionPhase.failed,
-        message: 'Missing required details. Review the report and try again.',
+        message: missing.isEmpty
+            ? 'Missing required details. Review the report and try again.'
+            : 'Missing: ${missing.join(', ')}.',
       );
       return false;
     }

@@ -140,7 +140,7 @@ class IncidentReviewScreen extends ConsumerWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      _missingText(form),
+                      _missingText(form, hasRanger: ranger.id.isNotEmpty),
                       style: const TextStyle(fontSize: 13),
                     ),
                   ),
@@ -183,13 +183,8 @@ class IncidentReviewScreen extends ConsumerWidget {
     }
   }
 
-  String _missingText(IncidentFormState form) {
-    final missing = <String>[
-      if (!form.categoryValid) 'category',
-      if (!form.evidenceValid) 'photo or omission reason',
-      if (!form.locationValid) 'location',
-      if (!form.descriptionValid) 'description',
-    ];
+  String _missingText(IncidentFormState form, {required bool hasRanger}) {
+    final missing = form.missingLabels(hasRanger: hasRanger);
     return 'Missing: ${missing.join(', ')}. The report cannot be submitted yet — '
         'your entries are kept.';
   }
