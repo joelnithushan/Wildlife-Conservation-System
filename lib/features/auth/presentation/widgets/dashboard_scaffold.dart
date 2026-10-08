@@ -52,13 +52,25 @@ class DashboardScaffold extends ConsumerWidget {
             LayoutBuilder(
               builder: (context, constraints) {
                 final columns = constraints.maxWidth >= 640 ? 2 : 1;
+                if (columns == 1) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (var i = 0; i < actions.length; i++) ...[
+                        if (i > 0) const SizedBox(height: 12),
+                        _ActionCard(action: actions[i]),
+                      ],
+                    ],
+                  );
+                }
+
                 return GridView.count(
                   crossAxisCount: columns,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   crossAxisSpacing: 12,
                   mainAxisSpacing: 12,
-                  childAspectRatio: columns == 2 ? 2.4 : 3.2,
+                  childAspectRatio: 2.8,
                   children: [
                     for (final a in actions) _ActionCard(action: a),
                   ],
