@@ -1,14 +1,33 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/routing/app_router.dart';
-import '../../../../core/theme/app_theme.dart';
 import '../../application/auth_controller.dart';
-import '../widgets/wildguard_brand.dart';
 
-/// Shared WildGuard sign-in screen. Firebase email + password only — no
-/// self-registration or social login (accounts are provisioned by admins).
+// ── Palette ──────────────────────────────────────────────────────────────────
+abstract final class _C {
+  static const primaryDark  = Color(0xFF0F5D43);
+  static const primary      = Color(0xFF1F6D50);
+  static const primaryBtn   = Color(0xFF146B4A);
+  static const textMain     = Color(0xFF20272F);
+  static const textSub      = Color(0xFF6B7280);
+  static const textFoot     = Color(0xFF747A80);
+  static const tagline      = Color(0xFF126548);
+  static const forgot       = Color(0xFF116B49);
+  static const inputBorder  = Color(0xFFD5DDDA);
+  static const inputFocus   = Color(0xFF1F5A43);
+  static const inputHint    = Color(0xFFA4ADB8);
+  static const error        = Color(0xFFDC3545);
+  static const hillBack     = Color(0xFF79B99D);
+  static const hillMid      = Color(0xFF378267);
+  static const hillFront    = Color(0xFF0F5D43);
+}
+
+// ── Screen ───────────────────────────────────────────────────────────────────
+
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
@@ -17,185 +36,696 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _formKey        = GlobalKey<FormState>();
+  final _emailCtrl      = TextEditingController();
+  final _passwordCtrl   = TextEditingController();
 
-  bool _obscure = true;
-  bool _submitting = false;
-  String? _errorMessage;
+  bool _obscure      = true;
+  bool _rememberMe   = true;
+  bool _submitting   = false;
+  String? _errorMsg;
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
+    _emailCtrl.dispose();
+    _passwordCtrl.dispose();
     super.dispose();
   }
 
-  String? _validateEmail(String? value) {
-    final email = value?.trim() ?? '';
+  String? _validateEmail(String? v) {
+    final email = v?.trim() ?? '';
     if (email.isEmpty) return 'Email is required.';
-    final regex = RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$');
-    if (!regex.hasMatch(email)) return 'Enter a valid email address.';
+    if (!RegExp(r'^[\w.+-]+@[\w-]+\.[\w.-]+$').hasMatch(email)) {
+      return 'Enter a valid email address.';
+    }
     return null;
   }
 
-  String? _validatePassword(String? value) {
-    if (value == null || value.isEmpty) return 'Password is required.';
+  String? _validatePassword(String? v) {
+    if (v == null || v.isEmpty) return 'Password is required.';
     return null;
   }
 
   Future<void> _submit() async {
-    setState(() => _errorMessage = null);
+    setState(() => _errorMsg = null);
     if (!_formKey.currentState!.validate()) return;
-    if (_submitting) return; // guard against duplicate requests
+    if (_submitting) return;
 
     setState(() => _submitting = true);
     final failure = await ref.read(authControllerProvider.notifier).signIn(
-          email: _emailController.text,
-          password: _passwordController.text,
-        );
+      email: _emailCtrl.text.trim(),
+      password: _passwordCtrl.text,
+    );
     if (!mounted) return;
     setState(() {
       _submitting = false;
-      _errorMessage = failure?.message;
+      _errorMsg   = failure?.message;
     });
-    // On success the router redirect moves us to the role dashboard.
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: Card(
-                margin: EdgeInsets.zero,
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const WildGuardBrand(logoSize: 96, showTagline: false),
-                        const SizedBox(height: 24),
-                        Text(
-                          'Welcome to WildGuard',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context)
-                              .textTheme
-                              .titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w700),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Smart Wildlife Conservation & Monitoring',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                        ),
-                        const SizedBox(height: 28),
-                        if (_errorMessage != null) ...[
-                          _ErrorBanner(message: _errorMessage!),
-                          const SizedBox(height: 16),
-                        ],
-                        TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          autofillHints: const [AutofillHints.email],
-                          enabled: !_submitting,
-                          decoration: const InputDecoration(
-                            labelText: 'Email Address',
-                            prefixIcon: Icon(Icons.email_outlined),
-                          ),
-                          validator: _validateEmail,
-                        ),
-                        const SizedBox(height: 16),
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: _obscure,
-                          textInputAction: TextInputAction.done,
-                          autofillHints: const [AutofillHints.password],
-                          enabled: !_submitting,
-                          onFieldSubmitted: (_) => _submit(),
-                          decoration: InputDecoration(
-                            labelText: 'Password',
-                            prefixIcon: const Icon(Icons.lock_outline),
-                            suffixIcon: IconButton(
-                              tooltip:
-                                  _obscure ? 'Show password' : 'Hide password',
-                              icon: Icon(_obscure
-                                  ? Icons.visibility_outlined
-                                  : Icons.visibility_off_outlined),
-                              onPressed: () =>
-                                  setState(() => _obscure = !_obscure),
-                            ),
-                          ),
-                          validator: _validatePassword,
-                        ),
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: TextButton(
-                            onPressed: _submitting
-                                ? null
-                                : () => context.push(AppRoutes.forgotPassword),
-                            child: const Text('Forgot Password?'),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        SizedBox(
-                          height: 48,
-                          child: ElevatedButton(
-                            onPressed: _submitting ? null : _submit,
-                            child: _submitting
-                                ? const SizedBox(
-                                    width: 22,
-                                    height: 22,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2.4,
-                                      valueColor:
-                                          AlwaysStoppedAnimation(Colors.white),
-                                    ),
-                                  )
-                                : const Text('SIGN IN'),
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        Text(
-                          'Authorized personnel only',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.textSecondary,
-                              ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Conserve • Track • Protect',
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: AppColors.primary,
-                                letterSpacing: 1.1,
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+    final mq = MediaQuery.of(context);
+    final w = mq.size.width;
+    final h = mq.size.height;
+    final hPad = w < 370 ? 22.0 : w > 420 ? 30.0 : 28.0;
+    // Hero occupies the top portion; the white panel fills the rest.
+    final heroH = (h * 0.44).clamp(320.0, 420.0);
+    const overlap = 34.0;
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light,
+      child: Scaffold(
+        backgroundColor: Colors.white,
+        // Keyboard overlays the content — layout stays fixed, nothing scrolls.
+        resizeToAvoidBottomInset: false,
+        body: Stack(
+          children: [
+            // ── Hero (full-bleed, behind status bar) ──────────
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: _WildGuardHero(height: heroH),
+            ),
+            // ── White panel overlapping hero, filling to bottom ─
+            Positioned(
+              top: heroH - overlap,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _LoginPanel(
+                hPad: hPad,
+                bottomInset: mq.padding.bottom,
+                formKey: _formKey,
+                emailCtrl: _emailCtrl,
+                passwordCtrl: _passwordCtrl,
+                obscure: _obscure,
+                rememberMe: _rememberMe,
+                submitting: _submitting,
+                errorMsg: _errorMsg,
+                validateEmail: _validateEmail,
+                validatePassword: _validatePassword,
+                onToggleObscure: () => setState(() => _obscure = !_obscure),
+                onToggleRemember: (v) => setState(() => _rememberMe = v ?? true),
+                onSubmit: _submit,
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
   }
+}
+
+// ── Hero ─────────────────────────────────────────────────────────────────────
+
+class _WildGuardHero extends StatelessWidget {
+  const _WildGuardHero({required this.height});
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final top = MediaQuery.of(context).padding.top;
+    return SizedBox(
+      width: double.infinity,
+      height: height,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Sky-toned fill so no white can ever show behind the artwork.
+          const ColoredBox(color: Color(0xFF9ACEDA)),
+          Image.asset(
+            'assets/images/login_background.png',
+            fit: BoxFit.cover,
+            alignment: Alignment.center,
+          ),
+          // Subtle gradient: transparent → dark-green at bottom
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.transparent, Color(0x440F5D43)],
+                stops: [0.55, 1.0],
+              ),
+            ),
+          ),
+          // Logo — clear of the status bar / notch, centered in hero
+          Positioned(
+            top: top + 12,
+            left: 0,
+            right: 0,
+            bottom: 18,
+            child: Align(
+              alignment: Alignment.center,
+              child: Image.asset(
+                'assets/images/wildguard_logo.png',
+                width: 128,
+                height: 128,
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── White panel ───────────────────────────────────────────────────────────────
+
+class _LoginPanel extends StatelessWidget {
+  const _LoginPanel({
+    required this.hPad,
+    required this.bottomInset,
+    required this.formKey,
+    required this.emailCtrl,
+    required this.passwordCtrl,
+    required this.obscure,
+    required this.rememberMe,
+    required this.submitting,
+    required this.errorMsg,
+    required this.validateEmail,
+    required this.validatePassword,
+    required this.onToggleObscure,
+    required this.onToggleRemember,
+    required this.onSubmit,
+  });
+
+  final double hPad;
+  final double bottomInset;
+  final GlobalKey<FormState> formKey;
+  final TextEditingController emailCtrl;
+  final TextEditingController passwordCtrl;
+  final bool obscure;
+  final bool rememberMe;
+  final bool submitting;
+  final String? errorMsg;
+  final FormFieldValidator<String> validateEmail;
+  final FormFieldValidator<String> validatePassword;
+  final VoidCallback onToggleObscure;
+  final ValueChanged<bool?> onToggleRemember;
+  final VoidCallback onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(40)),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Form(
+        key: formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Form content — compact so everything fits without scrolling.
+            Padding(
+              padding: EdgeInsets.fromLTRB(hPad, 14, hPad, 0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Title
+                  const Text(
+                    'WILDGUARD',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 30,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 4.5,
+                      color: _C.primaryDark,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  const Text(
+                    'Smart Wildlife Conservation & Monitoring',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w400,
+                      color: _C.textSub,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Error banner
+                  if (errorMsg != null) ...[
+                    _ErrorBanner(message: errorMsg!),
+                    const SizedBox(height: 12),
+                  ],
+
+                  // Email
+                  const _FieldLabel('Email Address'),
+                  const SizedBox(height: 7),
+                  _AuthTextField(
+                    controller: emailCtrl,
+                    hint: 'Enter your email',
+                    prefixIcon: Icons.mail_outline_rounded,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    autofillHints: const [AutofillHints.email],
+                    enabled: !submitting,
+                    validator: validateEmail,
+                  ),
+                  const SizedBox(height: 8),
+
+                  // Password
+                  const _FieldLabel('Password'),
+                  const SizedBox(height: 7),
+                  _AuthTextField(
+                    controller: passwordCtrl,
+                    hint: 'Enter your password',
+                    prefixIcon: Icons.lock_outline_rounded,
+                    obscureText: obscure,
+                    textInputAction: TextInputAction.done,
+                    autofillHints: const [AutofillHints.password],
+                    enabled: !submitting,
+                    onFieldSubmitted: (_) => onSubmit(),
+                    validator: validatePassword,
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscure
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        size: 20,
+                        color: const Color(0xFF6B7280),
+                      ),
+                      onPressed: onToggleObscure,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+
+                  // Remember me / Forgot password
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: Checkbox(
+                                value: rememberMe,
+                                onChanged:
+                                    submitting ? null : onToggleRemember,
+                                activeColor: _C.primary,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.shrinkWrap,
+                                visualDensity: VisualDensity.compact,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            const Text(
+                              'Remember me',
+                              style: TextStyle(
+                                fontSize: 14,
+                                color: _C.textMain,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Builder(builder: (ctx) {
+                        return TextButton(
+                          onPressed: submitting
+                              ? null
+                              : () => ctx.push(AppRoutes.forgotPassword),
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: const Text(
+                            'Forgot Password?',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: _C.forgot,
+                            ),
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+
+                  // Sign In
+                  _PrimarySignInButton(
+                    onPressed: submitting ? null : onSubmit,
+                    loading: submitting,
+                  ),
+                  const SizedBox(height: 10),
+
+                  // OR divider
+                  const _OrDivider(),
+                  const SizedBox(height: 8),
+
+                  // Google button
+                  const _GoogleButton(),
+                ],
+              ),
+            ),
+
+            // Flexible gap pushes the footer + hills to the bottom.
+            const Spacer(),
+
+            // Footer text
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: hPad),
+              child: Column(
+                children: const [
+                  Text(
+                    'Authorized personnel only',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: _C.textFoot),
+                  ),
+                  SizedBox(height: 6),
+                  Text(
+                    'Conserve  •  Track  •  Protect',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: 1.7,
+                      color: _C.tagline,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 2),
+
+            // Decorative hills (full-bleed, behind the gesture bar)
+            _ConservationFooter(bottomInset: bottomInset),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ── Reusable widgets ──────────────────────────────────────────────────────────
+
+class _FieldLabel extends StatelessWidget {
+  const _FieldLabel(this.text);
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Text(
+        text,
+        style: const TextStyle(
+          fontSize: 15,
+          fontWeight: FontWeight.w600,
+          color: _C.textMain,
+        ),
+      );
+}
+
+class _AuthTextField extends StatelessWidget {
+  const _AuthTextField({
+    required this.controller,
+    required this.hint,
+    required this.prefixIcon,
+    this.keyboardType,
+    this.textInputAction,
+    this.autofillHints,
+    this.enabled = true,
+    this.obscureText = false,
+    this.suffixIcon,
+    this.validator,
+    this.onFieldSubmitted,
+  });
+
+  final TextEditingController controller;
+  final String hint;
+  final IconData prefixIcon;
+  final TextInputType? keyboardType;
+  final TextInputAction? textInputAction;
+  final Iterable<String>? autofillHints;
+  final bool enabled;
+  final bool obscureText;
+  final Widget? suffixIcon;
+  final FormFieldValidator<String>? validator;
+  final ValueChanged<String>? onFieldSubmitted;
+
+  static const _r = 14.0;
+
+  InputDecoration get _dec => InputDecoration(
+        hintText: hint,
+        hintStyle: const TextStyle(color: _C.inputHint, fontSize: 15),
+        prefixIcon: Icon(prefixIcon, size: 20, color: const Color(0xFF6B7280)),
+        suffixIcon: suffixIcon,
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 13, horizontal: 14),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(_r),
+          borderSide: const BorderSide(color: _C.inputBorder, width: 1.2),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(_r),
+          borderSide: const BorderSide(color: _C.inputBorder, width: 1.2),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(_r),
+          borderSide: const BorderSide(color: _C.inputFocus, width: 1.8),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(_r),
+          borderSide: const BorderSide(color: _C.error, width: 1.2),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(_r),
+          borderSide: const BorderSide(color: _C.error, width: 1.8),
+        ),
+      );
+
+  @override
+  Widget build(BuildContext context) => TextFormField(
+        controller: controller,
+        keyboardType: keyboardType,
+        textInputAction: textInputAction,
+        autofillHints: autofillHints,
+        enabled: enabled,
+        obscureText: obscureText,
+        onFieldSubmitted: onFieldSubmitted,
+        validator: validator,
+        style: const TextStyle(fontSize: 15, color: _C.textMain),
+        decoration: _dec,
+      );
+}
+
+class _PrimarySignInButton extends StatelessWidget {
+  const _PrimarySignInButton({required this.onPressed, this.loading = false});
+
+  final VoidCallback? onPressed;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 52,
+        child: ElevatedButton(
+          onPressed: onPressed,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _C.primaryBtn,
+            disabledBackgroundColor: _C.primaryBtn.withValues(alpha: 0.6),
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          child: loading
+              ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.4,
+                    valueColor: AlwaysStoppedAnimation(Colors.white),
+                  ),
+                )
+              : const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'SIGN IN',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 2,
+                        color: Colors.white,
+                      ),
+                    ),
+                    SizedBox(width: 12),
+                    Icon(Icons.arrow_forward_rounded, size: 18, color: Colors.white),
+                  ],
+                ),
+        ),
+      );
+}
+
+class _OrDivider extends StatelessWidget {
+  const _OrDivider();
+
+  @override
+  Widget build(BuildContext context) => Row(
+        children: [
+          const Expanded(child: Divider(color: Color(0xFFD5DDDA))),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Text(
+              'OR',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey[500],
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          const Expanded(child: Divider(color: Color(0xFFD5DDDA))),
+        ],
+      );
+}
+
+class _GoogleButton extends StatelessWidget {
+  const _GoogleButton();
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 50,
+        child: OutlinedButton(
+          onPressed: () {},
+          style: OutlinedButton.styleFrom(
+            backgroundColor: Colors.white,
+            side: const BorderSide(color: Color(0xFFD5DBD8), width: 1.2),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CustomPaint(painter: _GoogleLogoPainter()),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Continue with Google',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF202428),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+}
+
+class _GoogleLogoPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final r = size.width / 2;
+    final p = Paint()..style = PaintingStyle.fill;
+
+    const segments = [
+      (Color(0xFF4285F4), -math.pi / 2, math.pi / 2),
+      (Color(0xFFEA4335), -math.pi,     math.pi / 2),
+      (Color(0xFFFBBC05),  math.pi / 2, math.pi / 2),
+      (Color(0xFF34A853),  0.0,          math.pi / 2),
+    ];
+    for (final (color, start, sweep) in segments) {
+      p.color = color;
+      canvas.drawArc(
+        Rect.fromCircle(center: Offset(cx, cy), radius: r),
+        start, sweep, true, p,
+      );
+    }
+    p.color = Colors.white;
+    canvas.drawCircle(Offset(cx, cy), r * 0.58, p);
+    p.color = const Color(0xFF4285F4);
+    canvas.drawRect(
+      Rect.fromLTWH(cx - r * 0.05, cy - r * 0.17, r * 0.95, r * 0.34),
+      p,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => false;
+}
+
+class _ConservationFooter extends StatelessWidget {
+  const _ConservationFooter({this.bottomInset = 0});
+  final double bottomInset;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+        height: 34 + bottomInset,
+        child: CustomPaint(painter: _LandscapePainter()),
+      );
+}
+
+class _LandscapePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final p = Paint()..style = PaintingStyle.fill;
+
+    // Back hill
+    p.color = _C.hillBack;
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, h * 0.52)
+        ..quadraticBezierTo(w * 0.22, h * 0.08, w * 0.48, h * 0.38)
+        ..quadraticBezierTo(w * 0.72, h * 0.65, w, h * 0.33)
+        ..lineTo(w, h)
+        ..lineTo(0, h)
+        ..close(),
+      p,
+    );
+
+    // Mid hill
+    p.color = _C.hillMid;
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, h * 0.72)
+        ..quadraticBezierTo(w * 0.28, h * 0.28, w * 0.52, h * 0.56)
+        ..quadraticBezierTo(w * 0.76, h * 0.82, w, h * 0.52)
+        ..lineTo(w, h)
+        ..lineTo(0, h)
+        ..close(),
+      p,
+    );
+
+    // Front hill
+    p.color = _C.hillFront;
+    canvas.drawPath(
+      Path()
+        ..moveTo(0, h * 0.88)
+        ..quadraticBezierTo(w * 0.32, h * 0.48, w * 0.56, h * 0.76)
+        ..quadraticBezierTo(w * 0.82, h * 1.02, w, h * 0.70)
+        ..lineTo(w, h)
+        ..lineTo(0, h)
+        ..close(),
+      p,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter old) => false;
 }
 
 class _ErrorBanner extends StatelessWidget {
@@ -203,26 +733,24 @@ class _ErrorBanner extends StatelessWidget {
   final String message;
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.error_outline, color: AppColors.error, size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(color: AppColors.error, fontSize: 13),
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: _C.error.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: _C.error.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.error_outline, color: _C.error, size: 20),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(color: _C.error, fontSize: 13),
+              ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
+          ],
+        ),
+      );
 }
