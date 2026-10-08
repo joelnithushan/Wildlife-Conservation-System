@@ -65,6 +65,29 @@ void main() {
     expect(second.alert!.id, first.alert!.id);
   });
 
+  test('update-in-place refreshes the alert location to the latest point', () {
+    // First reading creates the alert at (8.030, 80.900).
+    final first = usecase.call(
+      reading: r(id: 'r1'),
+      activeZones: zones,
+      existingAlerts: const [],
+      now: now,
+    );
+    // A later reading for the same animal, a different point STILL inside
+    // RZ-01 (lat 8.020–8.040, lon 80.890–80.910), must update the same alert.
+    final second = usecase.call(
+      reading: r(id: 'r2', lat: 8.035, lon: 80.905),
+      activeZones: zones,
+      existingAlerts: [first.alert!],
+      now: now,
+    );
+    expect(second.outcome, ProcessOutcome.alertUpdated);
+    expect(second.alert!.id, first.alert!.id); // no duplicate, same stable ID
+    // The manager must see the latest coordinates, not the stale originals.
+    expect(second.alert!.latitude, 8.035);
+    expect(second.alert!.longitude, 80.905);
+  });
+
   test('rejects a stale reading', () {
     final result = usecase.call(
       reading: r(observed: now.subtract(const Duration(hours: 3))),

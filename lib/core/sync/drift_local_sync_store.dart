@@ -14,13 +14,22 @@ class DriftLocalSyncStore implements LocalSyncStore {
 
   final AppDatabase _db;
 
+  // A record is eligible for (re)sync when it is still pending OR a previous
+  // attempt left it failed. Including failed rows is what makes §21 step 6
+  // ("retry later using the SAME ID") actually happen on the next sync run —
+  // otherwise a single transient failure strands the record forever.
+  static final List<String> _retryableStates = [
+    SyncState.pending.wire,
+    SyncState.failed.wire,
+  ];
+
   @override
   Future<List<SyncItem>> pendingPatrolItems() async {
     final patrols = await (_db.select(_db.patrolsTable)
-          ..where((t) => t.syncState.equals(SyncState.pending.wire)))
+          ..where((t) => t.syncState.isIn(_retryableStates)))
         .get();
     final positions = await (_db.select(_db.patrolPositionsTable)
-          ..where((t) => t.syncState.equals(SyncState.pending.wire)))
+          ..where((t) => t.syncState.isIn(_retryableStates)))
         .get();
 
     return [
@@ -42,7 +51,7 @@ class DriftLocalSyncStore implements LocalSyncStore {
   @override
   Future<List<SyncItem>> pendingIncidentItems() async {
     final incidents = await (_db.select(_db.incidentReportsTable)
-          ..where((t) => t.syncState.equals(SyncState.pending.wire)))
+          ..where((t) => t.syncState.isIn(_retryableStates)))
         .get();
     return [
       for (final row in incidents)

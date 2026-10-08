@@ -276,6 +276,31 @@ void main() {
       expect((await repo.getAssignmentsForAlert('A1')).length, 2);
       expect((await repo.getAlert('A1'))!.status, AlertStatus.assigned);
     });
+
+    test('19b. acknowledging a superseded assignment is rejected; the new '
+        'assignment acknowledges normally', () async {
+      final (repo, firstId) = await assigned(); // R001 assigned first
+      // Manager reassigns to CLO001 — the SAME alert, a NEW assignment.
+      final second = await repo.assignResponder(
+          alertId: 'A1', responderId: 'CLO001', assignedBy: 'PM001');
+
+      // The original (now superseded) assignment must NOT be able to drive the
+      // alert to ACKNOWLEDGED (§7: only the active assignment counts).
+      expect(
+        () => repo.acknowledgeAssignment(
+            assignmentId: firstId, responderId: 'R001'),
+        throwsA(isA<ConflictException>()),
+      );
+      expect((await repo.getAlert('A1'))!.status, AlertStatus.assigned);
+
+      // The current assignment acknowledges normally.
+      final acked = await repo.acknowledgeAssignment(
+          assignmentId: second.id, responderId: 'CLO001');
+      expect(acked.acknowledgedAt, isNotNull);
+      expect((await repo.getAlert('A1'))!.status, AlertStatus.acknowledged);
+      // History preserved: both assignments still exist.
+      expect((await repo.getAssignmentsForAlert('A1')).length, 2);
+    });
   });
 
   group('Response lifecycle & resolution', () {

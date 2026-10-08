@@ -126,4 +126,31 @@ void main() {
     expect(inner.documentCount, 2);
     await service.dispose();
   });
+
+  test('failed records auto-retry on the next sync run (no manual reset)',
+      () async {
+    await assignedPatrolWithPosition();
+    final inner = InMemoryRemoteWriter();
+    // First pass fails both records (transient offline); second pass is online.
+    final remote = FlakyRemoteWriter(inner, failuresRemaining: 2);
+    final service = DefaultSyncService(store: store, remote: remote);
+
+    // First pass: both records end up marked failed.
+    final first = await service.syncPendingPatrolData();
+    expect(first.failed, 2);
+    expect(inner.documentCount, 0);
+    expect((await db.select(db.patrolsTable).get()).single.syncState,
+        SyncState.failed.wire);
+
+    // Second pass with NO manual state reset — connectivity restored. The store
+    // must re-queue the failed rows (§21 step 6) so they finally sync.
+    final second = await service.syncPendingPatrolData();
+    expect(second.pushed, 2, reason: 'failed rows must be retried, not stranded');
+    expect(second.failed, 0);
+    expect(inner.documentCount, 2); // same stable IDs, no duplicates
+    expect((await db.select(db.patrolsTable).get()).single.syncState,
+        SyncState.synchronized.wire);
+    expect(await local.getPendingPositions(), isEmpty);
+    await service.dispose();
+  });
 }
