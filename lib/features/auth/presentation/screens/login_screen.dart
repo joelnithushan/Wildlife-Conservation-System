@@ -102,45 +102,49 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         backgroundColor: Colors.white,
         // Let Scaffold resize the body when keyboard opens (default behavior)
         resizeToAvoidBottomInset: true,
-        body: SingleChildScrollView(
-          physics: const ClampingScrollPhysics(),
-          child: SizedBox(
-            height: h, // Force the layout to remain full screen height
-            child: Stack(
-              children: [
-                // ── Hero (full-bleed, behind status bar) ──────────
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: _WildGuardHero(height: heroH),
-                ),
-                // ── White panel overlapping hero, filling to bottom ─
-                Positioned(
-                  top: heroH - overlap,
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: _LoginPanel(
-                    hPad: hPad,
-                    bottomInset: mq.padding.bottom,
-                    formKey: _formKey,
-                    emailCtrl: _emailCtrl,
-                    passwordCtrl: _passwordCtrl,
-                    obscure: _obscure,
-                    rememberMe: _rememberMe,
-                    submitting: _submitting,
-                    errorMsg: _errorMsg,
-                    validateEmail: _validateEmail,
-                    validatePassword: _validatePassword,
-                    onToggleObscure: () => setState(() => _obscure = !_obscure),
-                    onToggleRemember: (v) => setState(() => _rememberMe = v ?? true),
-                    onSubmit: _submit,
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final minH = constraints.maxHeight;
+            return SingleChildScrollView(
+              physics: const ClampingScrollPhysics(),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: minH),
+                child: IntrinsicHeight(
+                  child: Stack(
+                    children: [
+                      // ── Hero (behind status bar) ──────────
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: _WildGuardHero(height: heroH),
+                      ),
+                      // ── White panel overlapping hero ─
+                      Padding(
+                        padding: EdgeInsets.only(top: heroH - overlap),
+                        child: _LoginPanel(
+                          hPad: hPad,
+                          bottomInset: mq.padding.bottom,
+                          formKey: _formKey,
+                          emailCtrl: _emailCtrl,
+                          passwordCtrl: _passwordCtrl,
+                          obscure: _obscure,
+                          rememberMe: _rememberMe,
+                          submitting: _submitting,
+                          errorMsg: _errorMsg,
+                          validateEmail: _validateEmail,
+                          validatePassword: _validatePassword,
+                          onToggleObscure: () => setState(() => _obscure = !_obscure),
+                          onToggleRemember: (v) => setState(() => _rememberMe = v ?? true),
+                          onSubmit: _submit,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          }
         ),
       ),
     );
