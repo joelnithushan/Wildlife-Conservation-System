@@ -57,14 +57,16 @@ class WildlifeRiskAlert extends Equatable {
   WildlifeRiskAlert copyWith({
     AlertStatus? status,
     String? riskZoneId,
+    double? latitude,
+    double? longitude,
     DateTime? resolvedAt,
   }) =>
       WildlifeRiskAlert(
         id: id,
         parkId: parkId,
         source: source,
-        latitude: latitude,
-        longitude: longitude,
+        latitude: latitude ?? this.latitude,
+        longitude: longitude ?? this.longitude,
         severity: severity,
         createdAt: createdAt,
         animalId: animalId,
