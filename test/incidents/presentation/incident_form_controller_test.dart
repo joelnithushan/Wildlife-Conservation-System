@@ -196,6 +196,33 @@ void main() {
           LocationSource.manual);
     });
 
+    test('GPS failure keeps the incident type and description', () async {
+      controller().selectCategory(IncidentReportCategory.snare);
+      controller().setDescription('Wire snare found beside animal trail.');
+      when(() => location.getCurrentPosition()).thenThrow(Exception('no fix'));
+
+      await controller().captureGpsLocation();
+
+      final form = container.read(incidentFormControllerProvider);
+      expect(form.category, IncidentReportCategory.snare);
+      expect(form.description, contains('animal trail'));
+      expect(form.gpsError, isNotNull);
+      expect(form.hasLocation, isFalse);
+    });
+
+    test('photo failure keeps type, description and location', () {
+      controller().selectCategory(IncidentReportCategory.carcass);
+      controller().setDescription('Carcass beside the trail.');
+      controller().setManualLocation(8.03, 80.89);
+      controller().setPhotoError('Photo capture failed. Try again.');
+
+      final form = container.read(incidentFormControllerProvider);
+      expect(form.photoError, contains('Photo capture failed'));
+      expect(form.category, IncidentReportCategory.carcass);
+      expect(form.description, contains('Carcass'));
+      expect(form.hasLocation, isTrue);
+    });
+
     test('manual location is stored with locationSource = manual', () {
       controller().setManualLocation(8.05, 80.91);
       final form = container.read(incidentFormControllerProvider);
