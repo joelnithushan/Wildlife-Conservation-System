@@ -23,6 +23,8 @@ class CurrentUserNotifier extends Notifier<AppUser> {
       UserRole.ranger => DemoData.rangerPerera,
       UserRole.communityLiaisonOfficer => DemoData.liaisonOfficer,
       UserRole.conservationResearcher => DemoData.researcher,
+      // Demo switcher does not seed an admin; fall back to the manager profile.
+      UserRole.admin => DemoData.parkManager,
     };
   }
 

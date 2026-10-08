@@ -9,9 +9,4 @@ String incidentCategoryLabel(IncidentCategory category) => switch (category) {
       IncidentCategory.other => 'Other',
     };
 
-String userRoleLabel(UserRole role) => switch (role) {
-      UserRole.ranger => 'Ranger',
-      UserRole.parkManager => 'Park Manager',
-      UserRole.communityLiaisonOfficer => 'Community Liaison Officer',
-      UserRole.conservationResearcher => 'Conservation Researcher',
-    };
+String userRoleLabel(UserRole role) => role.displayLabel;

@@ -61,6 +61,9 @@ class FakeAuthService implements AuthService {
 /// In-memory [UserRepository] for unit tests.
 class FakeUserRepository implements UserRepository {
   final Map<String, ProfileResult> profiles = {};
+
+  /// Optional username -> email map for username-login tests.
+  final Map<String, String> emailsByUsername = {};
   bool throwError = false;
 
   @override
@@ -69,4 +72,8 @@ class FakeUserRepository implements UserRepository {
     return profiles[uid] ??
         const ProfileResult.problem(ProfileIssue.missing);
   }
+
+  @override
+  Future<String?> findEmailByUsername(String username) async =>
+      emailsByUsername[username.trim().toLowerCase()];
 }

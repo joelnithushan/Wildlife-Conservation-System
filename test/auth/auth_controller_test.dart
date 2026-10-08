@@ -54,6 +54,35 @@ void main() {
       expect(container.read(currentUserProvider).email, 'ranger1@wildguard.lk');
     });
 
+    test('1b. username login resolves to the account email and authenticates',
+        () async {
+      final auth = FakeAuthService();
+      final repo = FakeUserRepository()
+        ..profiles['uid-ranger1@wildguard.lk'] = _rangerProfile
+        ..emailsByUsername['ranger_kumar_001'] = 'ranger1@wildguard.lk';
+      final container = _container(auth, repo);
+
+      final failure = await container
+          .read(authControllerProvider.notifier)
+          .signIn(email: 'ranger_kumar_001', password: 'secret');
+
+      expect(failure, isNull);
+      expect(container.read(authControllerProvider), isA<Authenticated>());
+      expect(container.read(currentUserProvider).email, 'ranger1@wildguard.lk');
+    });
+
+    test('1c. unknown username is rejected as invalid credentials', () async {
+      final auth = FakeAuthService();
+      final container = _container(auth, FakeUserRepository());
+
+      final failure = await container
+          .read(authControllerProvider.notifier)
+          .signIn(email: 'ranger_ghost_001', password: 'secret');
+
+      expect(failure, AuthFailure.invalidCredentials);
+      expect(container.read(authControllerProvider), isA<AuthUnauthenticated>());
+    });
+
     test('2. invalid credentials surface a friendly failure', () async {
       final auth = FakeAuthService()..signInError = AuthFailure.invalidCredentials;
       final container = _container(auth, FakeUserRepository());

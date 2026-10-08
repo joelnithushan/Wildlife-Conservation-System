@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'app.dart';
 import 'core/services/firebase_bootstrap.dart';
+import 'features/admin/data/admin_bootstrap.dart';
 import 'features/onboarding/presentation/providers/onboarding_providers.dart';
 import 'shared/providers/providers.dart';
 
@@ -20,6 +21,12 @@ void main() async {
   //     optionsOverride: DefaultFirebaseOptions.currentPlatform,
   //   );
   final firebaseReady = await bootstrapFirebase();
+
+  // Seed the permanent default system admin (admin@gmail.com) once Firebase is
+  // available. Idempotent and failure-safe — never blocks startup.
+  if (firebaseReady) {
+    await ensureDefaultAdmin();
+  }
 
   // Load the onboarding flag once so the router guard can read it synchronously.
   final onboardingDone = await const OnboardingRepository().isCompleted();

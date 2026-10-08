@@ -14,6 +14,7 @@ abstract final class AccessPolicy {
         UserRole.ranger => AppRoutes.rangerDashboard,
         UserRole.communityLiaisonOfficer => AppRoutes.cloDashboard,
         UserRole.conservationResearcher => AppRoutes.researcherDashboard,
+        UserRole.admin => AppRoutes.adminDashboard,
       };
 
   /// Routes any authenticated user may open regardless of role.
@@ -72,6 +73,11 @@ abstract final class AccessPolicy {
           AppRoutes.analytics,
         };
         return exact.contains(location);
+
+      case UserRole.admin:
+        // System admin only manages accounts; no business-UC routes.
+        return location == AppRoutes.adminDashboard ||
+            location.startsWith('/admin/');
     }
   }
 
