@@ -8,6 +8,7 @@ import '../../../../core/routing/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/validators.dart';
 import '../providers/incident_providers.dart';
+import '../widgets/cached_park_map.dart';
 import '../widgets/uc02_widgets.dart';
 
 /// UC02-S01 – Screen 3: Location & Description.
@@ -104,6 +105,14 @@ class _IncidentLocationScreenState
               ),
             ),
           if (form.isLocating) const LinearProgressIndicator(),
+          if (form.gpsCapturedAt != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                'Captured ${DateFormat('dd MMM yyyy, HH:mm').format(form.gpsCapturedAt!)}',
+                key: const Key('gps-capture-time'),
+              ),
+            ),
           if (form.gpsError != null) ...[
             const SizedBox(height: 8),
             _GpsErrorCard(
@@ -338,31 +347,19 @@ class _ManualLocationSheetState extends ConsumerState<_ManualLocationSheet> {
             ],
           ),
           const Text(
-            'Move the pin to where you found the incident.',
+            'Tap or drag the pin to where you found the incident.',
             style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
           const SizedBox(height: 12),
-          SizedBox(
-            height: 140,
-            child: Stack(
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEDF2EE),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.2)),
-                  ),
-                  width: double.infinity,
-                  child: const Center(
-                    child: Icon(Icons.terrain, size: 40, color: Colors.grey),
-                  ),
-                ),
-                const Center(
-                  child: Icon(Icons.location_on, color: AppColors.error, size: 36),
-                ),
-              ],
-            ),
+          CachedParkMap(
+            latitude: double.tryParse(_lat.text.trim()),
+            longitude: double.tryParse(_lng.text.trim()),
+            onChanged: (point) {
+              setState(() {
+                _lat.text = point.latitude.toStringAsFixed(6);
+                _lng.text = point.longitude.toStringAsFixed(6);
+              });
+            },
           ),
           const SizedBox(height: 12),
           Row(
