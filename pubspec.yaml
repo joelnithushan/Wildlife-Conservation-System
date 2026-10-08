@@ -65,6 +65,7 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/images/onboarding/
 
 # App launcher icons generated from the Wild Guard logo.
 # Regenerate with: dart run flutter_launcher_icons

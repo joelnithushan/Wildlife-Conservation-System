@@ -29,7 +29,19 @@ enum AlertStatus { newAlert, assigned, acknowledged, responseInProgress, resolve
 /// Notification delivery state for a response assignment.
 enum DeliveryState { pending, delivered, failed }
 
-enum UserRole { ranger, parkManager, communityLiaisonOfficer, conservationResearcher }
+/// Staff roles. `admin` is a SUPPORTING role (system administrator) used only for
+/// account management — it is NOT one of the four graded business use cases.
+/// See AGENTS.md §10/§35.
+enum UserRole {
+  ranger,
+  parkManager,
+  communityLiaisonOfficer,
+  conservationResearcher,
+  admin,
+}
+
+/// Biological sex recorded on a staff profile (collected by the admin).
+enum Gender { male, female, other }
 
 enum ResponderRole { ranger, communityLiaisonOfficer }
 
@@ -102,6 +114,34 @@ extension UserRoleX on UserRole {
         UserRole.ranger => 'Ranger',
         UserRole.communityLiaisonOfficer => 'Community Liaison Officer',
         UserRole.conservationResearcher => 'Conservation Researcher',
+        UserRole.admin => 'System Admin',
+      };
+
+  /// Short code used when generating usernames (`role_firstname_seq`),
+  /// e.g. ranger -> `ranger_kumar_001`. Part of the username data contract.
+  String get usernameCode => switch (this) {
+        UserRole.parkManager => 'manager',
+        UserRole.ranger => 'ranger',
+        UserRole.communityLiaisonOfficer => 'clo',
+        UserRole.conservationResearcher => 'researcher',
+        UserRole.admin => 'admin',
+      };
+
+  /// Roles the admin can create from the dashboard. Admin accounts are seeded,
+  /// never created through the user-management form.
+  static const assignableByAdmin = <UserRole>[
+    UserRole.parkManager,
+    UserRole.ranger,
+    UserRole.communityLiaisonOfficer,
+    UserRole.conservationResearcher,
+  ];
+}
+
+extension GenderX on Gender {
+  String get displayLabel => switch (this) {
+        Gender.male => 'Male',
+        Gender.female => 'Female',
+        Gender.other => 'Other',
       };
 }
 
