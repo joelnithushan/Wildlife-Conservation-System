@@ -9,38 +9,33 @@ import '../providers/onboarding_providers.dart';
 /// Static content for a single onboarding page.
 class _OnboardingPage {
   const _OnboardingPage({
-    required this.icon,
-    required this.color,
+    required this.image,
     required this.title,
     required this.description,
   });
 
-  final IconData icon;
-  final Color color;
+  final String image;
   final String title;
   final String description;
 }
 
 const _pages = <_OnboardingPage>[
   _OnboardingPage(
-    icon: Icons.route_rounded,
-    color: AppColors.primary,
+    image: 'assets/images/onboarding/onboarding_patrol.png',
     title: 'Patrol with Purpose',
     description:
         'Plan routes, track ranger patrols in real time, and capture '
         'waypoints in the field — even when you are offline.',
   ),
   _OnboardingPage(
-    icon: Icons.report_gmailerrorred_rounded,
-    color: AppColors.warning,
+    image: 'assets/images/onboarding/onboarding_incident.png',
     title: 'Report Incidents Fast',
     description:
         'Log poaching sightings and human–wildlife conflict with photos and '
         'location. Everything syncs automatically once you reconnect.',
   ),
   _OnboardingPage(
-    icon: Icons.insights_rounded,
-    color: AppColors.secondary,
+    image: 'assets/images/onboarding/onboarding_insights.png',
     title: 'Insights that Protect',
     description:
         'Turn field data into clear analytics and reports that guide smarter, '
@@ -144,14 +139,11 @@ class _OnboardingPageView extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Container(
-            width: 168,
-            height: 168,
-            decoration: BoxDecoration(
-              color: page.color.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(page.icon, size: 84, color: page.color),
+          Image.asset(
+            page.image,
+            width: 220,
+            height: 220,
+            fit: BoxFit.contain,
           ),
           const SizedBox(height: 40),
           Text(

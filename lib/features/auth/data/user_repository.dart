@@ -29,6 +29,11 @@ abstract class UserRepository {
   /// Loads and validates the profile for [uid]. Never throws for a missing /
   /// malformed document — returns a [ProfileResult] describing the issue.
   Future<ProfileResult> getUserProfile(String uid);
+
+  /// Resolves a login [username] (e.g. `ranger_kumar_001`) to its account email
+  /// so the user can sign in with Firebase Auth. Returns null when no active
+  /// account has that username.
+  Future<String?> findEmailByUsername(String username);
 }
 
 /// [UserRepository] backed by Cloud Firestore.
@@ -50,6 +55,20 @@ class FirestoreUserRepository implements UserRepository {
     }
     return validateProfile(uid, snapshot.data());
   }
+
+  @override
+  Future<String?> findEmailByUsername(String username) async {
+    final handle = username.trim().toLowerCase();
+    if (handle.isEmpty) return null;
+    final query = await _firestore
+        .collection(FirestoreCollections.users)
+        .where('username', isEqualTo: handle)
+        .limit(1)
+        .get();
+    if (query.docs.isEmpty) return null;
+    final email = query.docs.first.data()['email'] as String?;
+    return (email == null || email.isEmpty) ? null : email;
+  }
 }
 
 /// Validates a raw Firestore user document into a [ProfileResult].
@@ -67,7 +86,10 @@ ProfileResult validateProfile(String uid, Map<String, dynamic>? data) {
 
   final name = (data['name'] as String?)?.trim() ?? '';
   final parkId = (data['parkId'] as String?)?.trim() ?? '';
-  if (name.isEmpty || parkId.isEmpty) {
+  // Every staff profile needs a name. A park is required for operational roles
+  // but not for the system admin, who is not tied to a single park.
+  final needsPark = role != UserRole.admin;
+  if (name.isEmpty || (needsPark && parkId.isEmpty)) {
     return const ProfileResult.problem(ProfileIssue.incomplete);
   }
 
@@ -76,15 +98,13 @@ ProfileResult validateProfile(String uid, Map<String, dynamic>? data) {
     return const ProfileResult.problem(ProfileIssue.inactive);
   }
 
-  return ProfileResult.ok(
-    AppUser(
-      id: uid,
-      name: name,
-      email: (data['email'] as String?)?.trim() ?? '',
-      role: role,
-      parkId: parkId,
-      isAvailable: data['isAvailable'] as bool? ?? true,
-      isActive: true,
-    ),
+  // Build from the full document so the profile screen has every field, then
+  // force the authoritative id/role/isActive that we validated above.
+  final user = AppUser.fromMap({...data, 'id': uid}).copyWith(
+    name: name,
+    role: role,
+    parkId: parkId,
+    isActive: true,
   );
+  return ProfileResult.ok(user);
 }

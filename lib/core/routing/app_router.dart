@@ -2,6 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:go_router/go_router.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 
+import '../../features/admin/presentation/screens/admin_dashboard_screen.dart';
+import '../../features/admin/presentation/screens/user_form_screen.dart';
 import '../../features/analytics/presentation/screens/analytics_screen.dart';
 import '../../features/auth/application/auth_controller.dart';
 import '../../features/auth/domain/access_policy.dart';
@@ -62,6 +64,13 @@ abstract final class AppRoutes {
   static const rangerDashboard = '/ranger';
   static const cloDashboard = '/clo';
   static const researcherDashboard = '/researcher';
+
+  // System admin – account management (supporting feature, not a graded UC).
+  static const adminDashboard = '/admin';
+  static const adminUserNew = '/admin/users/new';
+  static const adminUserEdit = '/admin/users/:id/edit';
+
+  static String adminUserEditFor(String id) => '/admin/users/$id/edit';
 
   // UC01 patrol flow (outside the bottom-nav shell).
   static const assignPatrol = '/assign-patrol';
@@ -212,6 +221,21 @@ GoRouter appRouter(Ref ref) {
       GoRoute(
         path: AppRoutes.researcherDashboard,
         builder: (context, state) => const ResearcherDashboardScreen(),
+      ),
+
+      // --- System admin (account management) ---
+      GoRoute(
+        path: AppRoutes.adminDashboard,
+        builder: (context, state) => const AdminDashboardScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.adminUserNew,
+        builder: (context, state) => const UserFormScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.adminUserEdit,
+        builder: (context, state) =>
+            UserFormScreen(userId: state.pathParameters['id']),
       ),
       ShellRoute(
         builder: (context, state, child) => HomeShell(child: child),
