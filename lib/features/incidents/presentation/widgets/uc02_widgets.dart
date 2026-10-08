@@ -1,4 +1,4 @@
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 
@@ -41,18 +41,18 @@ class SectionLabel extends StatelessWidget {
       );
 }
 
-/// Shows the captured photo (from the local file) or a fallback frame.
+/// Shows the captured photo from in-memory bytes, or a fallback frame.
 class EvidencePreview extends StatelessWidget {
-  const EvidencePreview({super.key, this.localPath, this.onRetake});
+  const EvidencePreview({super.key, this.bytes, this.onRetake});
 
-  final String? localPath;
+  final Uint8List? bytes;
 
   /// When provided, shows a "Change photo" overlay action.
   final VoidCallback? onRetake;
 
   @override
   Widget build(BuildContext context) {
-    if (localPath == null) {
+    if (bytes == null || bytes!.isEmpty) {
       return Container(
         height: 180,
         width: double.infinity,
@@ -69,8 +69,8 @@ class EvidencePreview extends StatelessWidget {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: Image.file(
-            File(localPath!),
+          child: Image.memory(
+            bytes!,
             height: 180,
             width: double.infinity,
             fit: BoxFit.cover,
