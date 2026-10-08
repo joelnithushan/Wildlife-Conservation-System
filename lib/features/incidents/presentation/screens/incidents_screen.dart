@@ -9,6 +9,7 @@ import '../../../../core/utils/date_extensions.dart';
 import '../../../../shared/models/incident_report.dart';
 import '../../../../shared/providers/providers.dart';
 import '../../../auth/domain/access_policy.dart';
+import '../../domain/incident_categories.dart';
 import '../providers/incident_providers.dart';
 import '../widgets/uc02_widgets.dart';
 
@@ -22,7 +23,7 @@ class IncidentsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final isManager = user.role == UserRole.parkManager;
-    final pendingAsync = ref.watch(pendingIncidentsProvider);
+    final reportsAsync = ref.watch(localIncidentsProvider);
     final isOnline = ref.watch(isOnlineProvider).value ?? true;
 
     return Scaffold(
@@ -37,7 +38,7 @@ class IncidentsScreen extends ConsumerWidget {
             const Icon(Icons.wifi, color: AppColors.success)
           else
             const Icon(Icons.wifi_off, color: AppColors.warning),
-          const SizedBox(width: 12),
+          _RoleSwitcher(current: user.role),
           if (isManager)
             IconButton(
               tooltip: 'Incident review queue',
@@ -51,29 +52,31 @@ class IncidentsScreen extends ConsumerWidget {
         icon: const Icon(Icons.add),
         label: const Text('Report Incident'),
       ),
-      body: pendingAsync.when(
+      body: reportsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(
           child: Text('Could not load incidents.\n$e', textAlign: TextAlign.center),
         ),
-        data: (pending) => ListView(
+        data: (reports) {
+          final pending = reports
+              .where((report) => report.syncState == SyncState.pending)
+              .length;
+          return ListView(
           padding: const EdgeInsets.all(16),
           children: [
             if (!isOnline) ...[
-              const OfflineSavedBanner(),
+              OfflineSavedBanner(pendingCount: pending),
               const SizedBox(height: 12),
             ],
             Text(
-              isManager
-                  ? 'Reports pending sync on this device: ${pending.length}'
-                  : 'My reports pending sync: ${pending.length}',
+              'Reports pending sync on this device: $pending',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
-            if (pending.isEmpty)
+            if (reports.isEmpty)
               const _EmptyReports()
             else
-              ...pending.map(
+              ...reports.map(
                 (report) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: _ReportTile(report: report),
@@ -93,7 +96,8 @@ class IncidentsScreen extends ConsumerWidget {
               ),
             ],
           ],
-        ),
+        );
+        },
       ),
     );
   }
@@ -107,14 +111,62 @@ class _ReportTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: ListTile(
-        title: Text(
-          report.category.name,
-          style: const TextStyle(fontWeight: FontWeight.w600),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              IncidentReportCategory.fromShared(report.category).label,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            Text('Observed ${report.observedAt.toDisplayDateTime()}'),
+            Text('Submission: ${_submissionLabel(report.submissionStatus)}'),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              children: [
+                syncStatusChip(report.syncState),
+                reviewStatusChip(report.reviewStatus),
+              ],
+            ),
+          ],
         ),
-        subtitle: Text('Observed ${report.observedAt.toDisplayDateTime()}'),
-        trailing: syncStatusChip(report.syncState),
       ),
+    );
+  }
+}
+
+String _submissionLabel(SubmissionStatus status) => switch (status) {
+      SubmissionStatus.draft => 'Draft',
+      SubmissionStatus.submitted => 'Submitted',
+    };
+
+class _RoleSwitcher extends ConsumerWidget {
+  const _RoleSwitcher({required this.current});
+
+  final UserRole current;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return PopupMenuButton<UserRole>(
+      tooltip: 'Switch demo role',
+      icon: const Icon(Icons.people_alt_outlined),
+      onSelected: (role) {
+        ref.read(currentUserProvider.notifier).switchRole(role);
+        ref.invalidate(localIncidentsProvider);
+        ref.invalidate(pendingIncidentsProvider);
+      },
+      itemBuilder: (context) => [
+        for (final role in [UserRole.ranger, UserRole.parkManager])
+          CheckedPopupMenuItem(
+            value: role,
+            checked: role == current,
+            child: Text(role == UserRole.ranger ? 'Ranger' : 'Park Manager'),
+          ),
+      ],
     );
   }
 }

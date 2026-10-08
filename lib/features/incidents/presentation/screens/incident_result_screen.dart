@@ -10,6 +10,7 @@ import '../../../../core/sync/sync_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/incident_report.dart';
 import '../../../../shared/widgets/status_chip.dart';
+import '../../domain/incident_categories.dart';
 import '../providers/incident_providers.dart';
 import '../widgets/uc02_widgets.dart';
 
@@ -186,7 +187,9 @@ class _ReportSummary extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SectionLabel('Report summary'),
-            Text('Category: ${report.category.name}'),
+            Text(
+              'Category: ${IncidentReportCategory.fromShared(report.category).label}',
+            ),
             const SizedBox(height: 4),
             Text(
                 'Location: ${report.latitude.toStringAsFixed(5)}, '
