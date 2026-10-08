@@ -11,8 +11,8 @@ void main() {
         containsAll([
           'Snare',
           'Carcass',
-          'Illegal campsite',
-          'Suspicious footprints',
+          'Illegal Campsite',
+          'Footprints',
           'Other',
         ]),
       );

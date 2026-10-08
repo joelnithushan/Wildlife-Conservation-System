@@ -29,8 +29,8 @@ enum IncidentReportCategory {
   String get label => switch (this) {
         IncidentReportCategory.snare => 'Snare',
         IncidentReportCategory.carcass => 'Carcass',
-        IncidentReportCategory.illegalCampsite => 'Illegal campsite',
-        IncidentReportCategory.suspiciousFootprints => 'Suspicious footprints',
+        IncidentReportCategory.illegalCampsite => 'Illegal Campsite',
+        IncidentReportCategory.suspiciousFootprints => 'Footprints',
         IncidentReportCategory.other => 'Other',
       };
 
