@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../../core/constants/firestore_collections.dart';
 import '../../../../core/enums/app_enums.dart';
+import '../../../../shared/models/alert_status_change.dart';
 import '../../../../shared/models/app_user.dart';
 import '../../../../shared/models/community_report.dart';
 import '../../../../shared/models/location_reading.dart';
@@ -10,6 +11,7 @@ import '../../../../shared/models/risk_zone.dart';
 import '../../../../shared/models/tracked_animal.dart';
 import '../../../../shared/models/wildlife_risk_alert.dart';
 import '../../../../shared/repositories/conflict_repository.dart';
+import '../../domain/acknowledgement_monitor.dart';
 import '../../domain/alert_rules.dart';
 import '../../domain/conflict_config.dart';
 import '../../domain/notification_service.dart';
@@ -558,5 +560,62 @@ class FirestoreConflictRepository implements ConflictRepository {
         return resolved;
       });
     });
+  }
+
+  @override
+  Future<CommunityReport> submitCommunityReport(CommunityReport report) async {
+    await _firestore
+        .collection(FirestoreCollections.communityReports)
+        .doc(report.id)
+        .set(report.toMap(), SetOptions(merge: true));
+    return report;
+  }
+
+  @override
+  Future<ResponseAssignment> retryNotificationDelivery(String assignmentId) async {
+    final assignment = await getAssignment(assignmentId);
+    if (assignment == null) throw const ConflictException('Assignment not found.');
+    final alert = await getAlert(assignment.alertId);
+    final result = await _notifications.notifyAssignment(
+      assignmentId: assignment.id,
+      responderId: assignment.responderId,
+      title: 'Response assignment (retry)',
+      body: 'You have been assigned to alert ${alert?.id ?? assignment.alertId}.',
+    );
+    final retried = assignment.copyWith(
+      deliveryState: result.state,
+      deliveredAt: result.isDelivered ? _now() : assignment.deliveredAt,
+    );
+    await _firestore
+        .collection(FirestoreCollections.responseAssignments)
+        .doc(assignmentId)
+        .set(retried.toMap(), SetOptions(merge: true));
+    return retried;
+  }
+
+  @override
+  Future<List<WildlifeRiskAlert>> checkAndEscalateOverdueAlerts({
+    required String parkId,
+    ConflictConfig? config,
+  }) async {
+    final cfg = config ?? _config;
+    final overdueAlerts = <WildlifeRiskAlert>[];
+    final alerts = await getAlerts(parkId);
+    for (final alert in alerts) {
+      if (alert.status == AlertStatus.assigned) {
+        final active = await getActiveAssignment(alert.id);
+        if (active != null &&
+            AcknowledgementMonitor.isOverdue(active, now: _now(), config: cfg)) {
+          overdueAlerts.add(alert);
+        }
+      }
+    }
+    return overdueAlerts;
+  }
+
+  @override
+  Future<List<AlertStatusChange>> getStatusHistory(String alertId) async {
+    // Firestore status history query placeholder
+    return [];
   }
 }

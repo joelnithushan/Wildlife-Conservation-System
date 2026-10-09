@@ -1,5 +1,6 @@
 import '../../../../core/enums/app_enums.dart';
 import '../../../../shared/demo/demo_data.dart';
+import '../../../../shared/models/alert_status_change.dart';
 import '../../../../shared/models/app_user.dart';
 import '../../../../shared/models/community_report.dart';
 import '../../../../shared/models/location_reading.dart';
@@ -8,6 +9,7 @@ import '../../../../shared/models/risk_zone.dart';
 import '../../../../shared/models/tracked_animal.dart';
 import '../../../../shared/models/wildlife_risk_alert.dart';
 import '../../../../shared/repositories/conflict_repository.dart';
+import '../../domain/acknowledgement_monitor.dart';
 import '../../domain/alert_rules.dart';
 import '../../domain/conflict_config.dart';
 import '../../domain/notification_service.dart';
@@ -45,6 +47,14 @@ class InMemoryConflictRepository implements ConflictRepository {
     }
     for (final a in seedAlerts ?? DemoData.seededAlerts(_now())) {
       _alerts[a.id] = a;
+      _statusChanges.add(AlertStatusChange.create(
+        alertId: a.id,
+        fromStatus: null,
+        toStatus: a.status,
+        changedBy: 'System (Seed)',
+        reason: 'Initial alert creation',
+        timestamp: a.createdAt,
+      ));
     }
   }
 
@@ -60,6 +70,7 @@ class InMemoryConflictRepository implements ConflictRepository {
   final Map<String, WildlifeRiskAlert> _alerts = {};
   final Map<String, ResponseAssignment> _assignments = {};
   final Map<String, CommunityReport> _reports = {};
+  final List<AlertStatusChange> _statusChanges = [];
   final Set<String> _seenReadingIds = {};
 
   // --- Triggers -------------------------------------------------------------
@@ -84,7 +95,18 @@ class InMemoryConflictRepository implements ConflictRepository {
 
     _seenReadingIds.add(reading.id);
     if (result.alert != null) {
+      final isNew = !_alerts.containsKey(result.alert!.id);
       _alerts[result.alert!.id] = result.alert!;
+      if (isNew) {
+        _statusChanges.add(AlertStatusChange.create(
+          alertId: result.alert!.id,
+          fromStatus: null,
+          toStatus: AlertStatus.newAlert,
+          changedBy: 'System (Collar Reading)',
+          reason: 'Alert raised from animal collar GPS entering risk zone',
+          timestamp: _now(),
+        ));
+      }
     }
     return result.alert;
   }
@@ -106,7 +128,18 @@ class InMemoryConflictRepository implements ConflictRepository {
       throw ConflictException(result.rejection.message);
     }
     if (result.alert != null) {
+      final isNew = !_alerts.containsKey(result.alert!.id);
       _alerts[result.alert!.id] = result.alert!;
+      if (isNew) {
+        _statusChanges.add(AlertStatusChange.create(
+          alertId: result.alert!.id,
+          fromStatus: null,
+          toStatus: AlertStatus.newAlert,
+          changedBy: report.verifiedBy ?? 'CLO',
+          reason: 'Alert raised from verified community sighting',
+          timestamp: _now(),
+        ));
+      }
     }
     return result.alert;
   }
@@ -137,6 +170,12 @@ class InMemoryConflictRepository implements ConflictRepository {
     final list = _reports.values.where((r) => r.parkId == parkId).toList()
       ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return list;
+  }
+
+  @override
+  Future<CommunityReport> submitCommunityReport(CommunityReport report) async {
+    _reports[report.id] = report;
+    return report;
   }
 
   @override
@@ -230,10 +269,23 @@ class InMemoryConflictRepository implements ConflictRepository {
     _assignments[assignment.id] = assignment;
 
     // Move NEW -> ASSIGNED on the first assignment; a reassignment keeps the
-    // alert ASSIGNED and never duplicates the alert. (active is unused beyond
-    // documenting the reassignment path.)
+    // alert ASSIGNED and never duplicates the alert.
     if (alert.status == AlertStatus.newAlert) {
-      _transition(alert, AlertStatus.assigned);
+      _transition(
+        alert,
+        AlertStatus.assigned,
+        changedBy: assignedBy,
+        reason: 'Assigned to responder $responderId',
+      );
+    } else {
+      _statusChanges.add(AlertStatusChange.create(
+        alertId: alertId,
+        fromStatus: alert.status,
+        toStatus: alert.status,
+        changedBy: assignedBy,
+        reason: 'Reassigned to responder $responderId',
+        timestamp: _now(),
+      ));
     }
     assert(active == null || alert.status == AlertStatus.assigned);
 
@@ -250,6 +302,27 @@ class InMemoryConflictRepository implements ConflictRepository {
     );
     _assignments[assignment.id] = delivered;
     return delivered;
+  }
+
+  @override
+  Future<ResponseAssignment> retryNotificationDelivery(String assignmentId) async {
+    final assignment = _assignments[assignmentId];
+    if (assignment == null) {
+      throw const ConflictException('Assignment not found.');
+    }
+    final alert = _alerts[assignment.alertId];
+    final result = await _notifications.notifyAssignment(
+      assignmentId: assignment.id,
+      responderId: assignment.responderId,
+      title: 'Response assignment (retry)',
+      body: 'You have been assigned to alert ${alert?.id ?? assignment.alertId}.',
+    );
+    final retried = assignment.copyWith(
+      deliveryState: result.state,
+      deliveredAt: result.isDelivered ? _now() : assignment.deliveredAt,
+    );
+    _assignments[assignmentId] = retried;
+    return retried;
   }
 
   @override
@@ -278,7 +351,12 @@ class InMemoryConflictRepository implements ConflictRepository {
 
     final alert = _alerts[assignment.alertId];
     if (alert == null) throw const ConflictException('Alert not found.');
-    _transition(alert, AlertStatus.acknowledged);
+    _transition(
+      alert,
+      AlertStatus.acknowledged,
+      changedBy: responderId,
+      reason: 'Acknowledged by assigned responder',
+    );
 
     final updated = assignment.copyWith(acknowledgedAt: _now());
     _assignments[assignmentId] = updated;
@@ -298,7 +376,12 @@ class InMemoryConflictRepository implements ConflictRepository {
     }
     final alert = _alerts[assignment.alertId];
     if (alert == null) throw const ConflictException('Alert not found.');
-    _transition(alert, AlertStatus.responseInProgress);
+    _transition(
+      alert,
+      AlertStatus.responseInProgress,
+      changedBy: assignment.responderId,
+      reason: 'Response started on-site by responder',
+    );
 
     final updated = assignment.copyWith(startedAt: _now());
     _assignments[assignmentId] = updated;
@@ -361,14 +444,69 @@ class InMemoryConflictRepository implements ConflictRepository {
       resolvedAt: _now(),
     );
     _alerts[alertId] = resolved;
+    _statusChanges.add(AlertStatusChange.create(
+      alertId: alertId,
+      fromStatus: alert.status,
+      toStatus: AlertStatus.resolved,
+      changedBy: 'Park Manager',
+      reason: 'Alert resolved by Park Manager after outcome verification',
+      timestamp: _now(),
+    ));
     return resolved;
+  }
+
+  @override
+  Future<List<WildlifeRiskAlert>> checkAndEscalateOverdueAlerts({
+    required String parkId,
+    ConflictConfig? config,
+  }) async {
+    final cfg = config ?? _config;
+    final overdueAlerts = <WildlifeRiskAlert>[];
+    for (final alert in _alerts.values.where((a) => a.parkId == parkId)) {
+      if (alert.status == AlertStatus.assigned) {
+        final active = await getActiveAssignment(alert.id);
+        if (active != null &&
+            AcknowledgementMonitor.isOverdue(active, now: _now(), config: cfg)) {
+          overdueAlerts.add(alert);
+          _statusChanges.add(AlertStatusChange.create(
+            alertId: alert.id,
+            fromStatus: alert.status,
+            toStatus: alert.status,
+            changedBy: 'System Escalation Monitor',
+            reason:
+                'Automatic overdue escalation: Acknowledgement timeout exceeded (> ${cfg.acknowledgementTimeout.inMinutes}m)',
+            timestamp: _now(),
+          ));
+        }
+      }
+    }
+    return overdueAlerts;
+  }
+
+  @override
+  Future<List<AlertStatusChange>> getStatusHistory(String alertId) async {
+    return _statusChanges.where((s) => s.alertId == alertId).toList()
+      ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
   }
 
   // --- internals ------------------------------------------------------------
 
-  void _transition(WildlifeRiskAlert alert, AlertStatus to) {
+  void _transition(
+    WildlifeRiskAlert alert,
+    AlertStatus to, {
+    String? changedBy,
+    String? reason,
+  }) {
     AlertRules.assertTransition(alert.status, to);
     _alerts[alert.id] = alert.copyWith(status: to);
+    _statusChanges.add(AlertStatusChange.create(
+      alertId: alert.id,
+      fromStatus: alert.status,
+      toStatus: to,
+      changedBy: changedBy,
+      reason: reason,
+      timestamp: _now(),
+    ));
   }
 }
 
