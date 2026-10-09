@@ -1,7 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import '../../../../core/database/app_database.dart';
+import '../../../../shared/models/alert_status_change.dart';
 import '../../../../shared/models/app_user.dart';
 import '../../../../shared/models/community_report.dart';
 import '../../../../shared/models/location_reading.dart';
@@ -11,9 +12,11 @@ import '../../../../shared/models/tracked_animal.dart';
 import '../../../../shared/models/wildlife_risk_alert.dart';
 import '../../../../shared/providers/providers.dart';
 import '../../../../shared/repositories/conflict_repository.dart';
+import '../../data/datasources/conflict_local_data_source.dart';
 import '../../data/notification/simulated_notification_service.dart';
+import '../../data/repositories/drift_conflict_repository.dart';
 import '../../data/repositories/firestore_conflict_repository.dart';
-import '../../data/repositories/in_memory_conflict_repository.dart';
+import '../../domain/conflict_config.dart';
 import '../../domain/notification_service.dart';
 
 /// Simulated notification service (swap for an FCM-backed one when available).
@@ -21,18 +24,51 @@ final notificationServiceProvider = Provider<NotificationService>(
   (_) => SimulatedNotificationService(),
 );
 
+/// Configurable acknowledgement threshold in minutes for automatic overdue escalation.
+/// Defaults to 15 minutes as per spec, but can be set to e.g. 1 minute for rapid demo/testing.
+class AcknowledgementThresholdNotifier extends Notifier<int> {
+  @override
+  int build() => 15;
+
+  void setThreshold(int minutes) => state = minutes;
+}
+
+final acknowledgementThresholdMinutesProvider =
+    NotifierProvider<AcknowledgementThresholdNotifier, int>(
+  AcknowledgementThresholdNotifier.new,
+);
+
+/// Tunable configuration derived from the acknowledgement threshold provider.
+final conflictConfigProvider = Provider<ConflictConfig>((ref) {
+  final minutes = ref.watch(acknowledgementThresholdMinutesProvider);
+  return ConflictConfig(
+    readingFreshness: const Duration(minutes: 30),
+    acknowledgementTimeout: Duration(minutes: minutes),
+  );
+});
+
+/// Local data source backed by Drift/SQLite for UC03 persistence.
+final conflictLocalDataSourceProvider = Provider<ConflictLocalDataSource>((ref) {
+  return ConflictLocalDataSource(ref.watch(appDatabaseProvider));
+});
+
 /// UC03 repository. Uses Firestore when Firebase is configured/initialized;
-/// otherwise falls back to the in-memory repository so the UC03 flow stays
-/// demonstrable (and tests stay green) without Firebase — mirroring the
-/// [storageServiceProvider]/[remoteWriterProvider] fallback pattern.
+/// otherwise uses DriftConflictRepository so UC03 data (alerts, readings, assignments,
+/// status history, community reports) survives app restart, matching UC01/UC02.
 final conflictRepositoryProvider = Provider<ConflictRepository>((ref) {
   final notifications = ref.watch(notificationServiceProvider);
+  final config = ref.watch(conflictConfigProvider);
   return ref.watch(firebaseReadyProvider)
       ? FirestoreConflictRepository(
           firestore: FirebaseFirestore.instance,
           notificationService: notifications,
+          config: config,
         )
-      : InMemoryConflictRepository(notificationService: notifications);
+      : DriftConflictRepository(
+          localDataSource: ref.watch(conflictLocalDataSourceProvider),
+          notificationService: notifications,
+          config: config,
+        );
 });
 
 // --- Read providers ---------------------------------------------------------
@@ -76,6 +112,11 @@ final activeAssignmentProvider =
   return ref.watch(conflictRepositoryProvider).getActiveAssignment(alertId);
 });
 
+final alertStatusHistoryProvider =
+    FutureProvider.family<List<AlertStatusChange>, String>((ref, alertId) {
+  return ref.watch(conflictRepositoryProvider).getStatusHistory(alertId);
+});
+
 // --- Mutation controller ----------------------------------------------------
 
 /// Drives every UC03 write. Each method calls the repository, refreshes the
@@ -110,6 +151,7 @@ class ConflictController extends AsyncNotifier<void> {
     ref.invalidate(availableRespondersProvider);
     ref.invalidate(assignmentsForAlertProvider);
     ref.invalidate(activeAssignmentProvider);
+    ref.invalidate(alertStatusHistoryProvider);
   }
 
   // Trigger A – simulate a collar reading through the real domain pipeline.
@@ -127,6 +169,25 @@ class ConflictController extends AsyncNotifier<void> {
       receivedAt: now,
     );
     return _mutate(() => _repo.processLocationReading(reading));
+  }
+
+  // Submit a community conflict report (Channel APP or simulated SMS).
+  Future<CommunityReport> submitCommunityReport({
+    required String parkId,
+    required String description,
+    required double latitude,
+    required double longitude,
+    String channel = 'APP',
+  }) {
+    final report = CommunityReport.create(
+      parkId: parkId,
+      description: description,
+      latitude: latitude,
+      longitude: longitude,
+      createdAt: DateTime.now(),
+      channel: channel,
+    );
+    return _mutate(() => _repo.submitCommunityReport(report));
   }
 
   // Trigger B – verify a community report, then run it through the same pipeline.
@@ -156,6 +217,9 @@ class ConflictController extends AsyncNotifier<void> {
       );
     });
   }
+
+  Future<ResponseAssignment> retryNotificationDelivery(String assignmentId) =>
+      _mutate(() => _repo.retryNotificationDelivery(assignmentId));
 
   Future<ResponseAssignment> acknowledge(String assignmentId) {
     return _mutate(() {
@@ -190,4 +254,12 @@ class ConflictController extends AsyncNotifier<void> {
 
   Future<WildlifeRiskAlert> resolveAlert(String alertId) =>
       _mutate(() => _repo.resolveAlert(alertId));
+
+  Future<List<WildlifeRiskAlert>> checkAndEscalateOverdue(String parkId) {
+    final config = ref.read(conflictConfigProvider);
+    return _mutate(() => _repo.checkAndEscalateOverdueAlerts(
+          parkId: parkId,
+          config: config,
+        ));
+  }
 }

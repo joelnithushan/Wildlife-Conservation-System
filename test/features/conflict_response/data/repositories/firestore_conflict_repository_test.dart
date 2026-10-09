@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wildlife_conservation_system/core/enums/app_enums.dart';
+import 'package:wildlife_conservation_system/features/conflict_response/data/repositories/drift_conflict_repository.dart';
 import 'package:wildlife_conservation_system/features/conflict_response/data/repositories/in_memory_conflict_repository.dart';
 import 'package:wildlife_conservation_system/features/conflict_response/presentation/providers/conflict_providers.dart';
 import 'package:wildlife_conservation_system/shared/models/community_report.dart';
@@ -66,14 +67,13 @@ void main() {
   });
 
   group('UC03 repository wiring', () {
-    test('14. falls back to in-memory repository when Firebase not ready', () {
-      // firebaseReadyProvider defaults to false — the provider must not touch
-      // FirebaseFirestore.instance and must return the in-memory fallback so the
-      // UC03 flow stays demonstrable without Firebase.
+    test('14. falls back to Drift SQLite repository when Firebase not ready', () {
+      // firebaseReadyProvider defaults to false — the provider must return the
+      // Drift SQLite persistent repository so UC03 survives app restarts like UC01/UC02.
       final container = ProviderContainer();
       addTearDown(container.dispose);
       final repo = container.read(conflictRepositoryProvider);
-      expect(repo, isA<InMemoryConflictRepository>());
+      expect(repo, isA<DriftConflictRepository>());
     });
 
     test('15. in-memory fallback repository is usable and seeds demo alerts',

@@ -1,3 +1,5 @@
+import '../../features/conflict_response/domain/conflict_config.dart';
+import '../models/alert_status_change.dart';
 import '../models/app_user.dart';
 import '../models/community_report.dart';
 import '../models/location_reading.dart';
@@ -34,6 +36,9 @@ abstract interface class ConflictRepository {
 
   Future<List<CommunityReport>> getCommunityReports(String parkId);
 
+  /// Submit a new community report (from App or simulated SMS).
+  Future<CommunityReport> submitCommunityReport(CommunityReport report);
+
   /// Mark a report credible; returns the updated report. Verifying then feeds
   /// the same alert-response workflow via [processCommunityReport].
   Future<CommunityReport> verifyCommunityReport({
@@ -57,6 +62,9 @@ abstract interface class ConflictRepository {
     required String assignedBy,
   });
 
+  /// Retries sending notification for an assignment with failed delivery.
+  Future<ResponseAssignment> retryNotificationDelivery(String assignmentId);
+
   /// Only the assigned responder may acknowledge their own assignment.
   Future<ResponseAssignment> acknowledgeAssignment({
     required String assignmentId,
@@ -74,4 +82,14 @@ abstract interface class ConflictRepository {
   });
 
   Future<WildlifeRiskAlert> resolveAlert(String alertId);
+
+  /// Check all active assignments for a park and automatically record overdue
+  /// escalation when the acknowledgement deadline has passed.
+  Future<List<WildlifeRiskAlert>> checkAndEscalateOverdueAlerts({
+    required String parkId,
+    ConflictConfig? config,
+  });
+
+  /// Retrieve the full status transition history for an alert.
+  Future<List<AlertStatusChange>> getStatusHistory(String alertId);
 }

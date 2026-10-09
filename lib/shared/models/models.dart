@@ -1,6 +1,7 @@
 /// Barrel export for all shared domain models.
 library;
 
+export 'alert_status_change.dart';
 export 'app_user.dart';
 export 'community_report.dart';
 export 'conservation_report.dart';
