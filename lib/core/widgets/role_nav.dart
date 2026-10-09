@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../shared/session/current_user.dart';
 import '../enums/app_enums.dart';
 import '../routing/app_router.dart';
+import '../theme/app_icons.dart';
 
 /// A single bottom-navigation destination: target route + icons + label.
 class NavDest {
@@ -20,21 +21,21 @@ class NavDest {
 /// role only sees the modules it may open (kept in sync with [AccessPolicy]).
 List<NavDest> navDestinationsFor(UserRole role) {
   const patrol = NavDest(
-    AppRoutes.patrol, Icons.route_outlined, Icons.route, 'Patrol');
-  const incidents = NavDest(AppRoutes.incidents,
-      Icons.report_gmailerrorred_outlined, Icons.report, 'Incidents');
-  const response = NavDest(AppRoutes.conflictResponse,
-      Icons.crisis_alert_outlined, Icons.crisis_alert, 'Response');
-  const reports = NavDest(AppRoutes.analytics, Icons.insights_outlined,
-      Icons.insights, 'Reports');
+      AppRoutes.patrol, AppIcons.patrol, AppIcons.patrolFilled, 'Patrol');
+  const incidents = NavDest(AppRoutes.incidents, AppIcons.incidents,
+      AppIcons.incidentsFilled, 'Incidents');
+  const response = NavDest(AppRoutes.conflictResponse, AppIcons.response,
+      AppIcons.responseFilled, 'Response');
+  const reports = NavDest(
+      AppRoutes.analytics, AppIcons.reports, AppIcons.reportsFilled, 'Reports');
   const profile = NavDest(
-    AppRoutes.profile, Icons.person_outline, Icons.person, 'Profile');
+      AppRoutes.profile, AppIcons.profile, AppIcons.profileFilled, 'Profile');
 
   switch (role) {
     case UserRole.parkManager:
       return const [
-        NavDest(AppRoutes.managerDashboard, Icons.dashboard_outlined,
-            Icons.dashboard, 'Home'),
+        NavDest(AppRoutes.managerDashboard, AppIcons.home, AppIcons.homeFilled,
+            'Home'),
         incidents,
         response,
         reports,
@@ -42,8 +43,8 @@ List<NavDest> navDestinationsFor(UserRole role) {
       ];
     case UserRole.ranger:
       return const [
-        NavDest(AppRoutes.rangerDashboard, Icons.dashboard_outlined,
-            Icons.dashboard, 'Home'),
+        NavDest(AppRoutes.rangerDashboard, AppIcons.home, AppIcons.homeFilled,
+            'Home'),
         patrol,
         incidents,
         response,
@@ -51,21 +52,21 @@ List<NavDest> navDestinationsFor(UserRole role) {
       ];
     case UserRole.communityLiaisonOfficer:
       return const [
-        NavDest(AppRoutes.cloDashboard, Icons.dashboard_outlined,
-            Icons.dashboard, 'Home'),
+        NavDest(AppRoutes.cloDashboard, AppIcons.home, AppIcons.homeFilled,
+            'Home'),
         response,
         profile,
       ];
     case UserRole.conservationResearcher:
       return const [
-        NavDest(AppRoutes.researcherDashboard, Icons.dashboard_outlined,
-            Icons.dashboard, 'Home'),
+        NavDest(AppRoutes.researcherDashboard, AppIcons.home,
+            AppIcons.homeFilled, 'Home'),
         reports,
         profile,
       ];
     case UserRole.admin:
       return const [
-        NavDest(AppRoutes.adminDashboard, Icons.group_outlined, Icons.group,
+        NavDest(AppRoutes.adminDashboard, AppIcons.admin, AppIcons.adminFilled,
             'Users'),
         profile,
       ];
