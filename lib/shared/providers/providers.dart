@@ -18,6 +18,12 @@ import '../services/location_service.dart';
 /// Re-exported for convenience:
 export '../session/current_user.dart' show currentUserProvider, CurrentUserNotifier;
 
+/// Whether to render real Google Maps. The app turns this on at startup (see
+/// main.dart); it defaults to `false` so headless widget tests fall back to the
+/// lightweight canvas previews (a GoogleMap platform view can't render in
+/// `flutter test`). Screens go through the shared map widgets, which read it.
+final mapsEnabledProvider = Provider<bool>((_) => false);
+
 /// Connectivity abstraction (backed by connectivity_plus).
 final connectivityServiceProvider = Provider<ConnectivityService>(
   (ref) => ConnectivityPlusService(),

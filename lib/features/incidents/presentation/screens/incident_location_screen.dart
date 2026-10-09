@@ -7,6 +7,8 @@ import '../../../../core/enums/app_enums.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../core/widgets/app_map.dart';
+import '../../../../shared/providers/providers.dart';
 import '../../domain/field_incident_draft.dart';
 import '../providers/incident_providers.dart';
 import '../widgets/cached_park_map.dart';
@@ -372,16 +374,22 @@ class _ManualLocationSheetState extends ConsumerState<_ManualLocationSheet> {
             style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
           const SizedBox(height: 12),
-          CachedParkMap(
-            latitude: double.tryParse(_lat.text.trim()),
-            longitude: double.tryParse(_lng.text.trim()),
-            onChanged: (point) {
+          Builder(builder: (context) {
+            final lat = double.tryParse(_lat.text.trim());
+            final lng = double.tryParse(_lng.text.trim());
+            void onPoint(({double latitude, double longitude}) point) {
               setState(() {
                 _lat.text = point.latitude.toStringAsFixed(6);
                 _lng.text = point.longitude.toStringAsFixed(6);
               });
-            },
-          ),
+            }
+
+            return ref.watch(mapsEnabledProvider)
+                ? GoogleLocationPicker(
+                    latitude: lat, longitude: lng, onChanged: onPoint)
+                : CachedParkMap(
+                    latitude: lat, longitude: lng, onChanged: onPoint);
+          }),
           const SizedBox(height: 12),
           Row(
             children: [

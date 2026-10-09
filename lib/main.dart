@@ -37,6 +37,9 @@ void main() async {
         firebaseReadyProvider.overrideWithValue(firebaseReady),
         onboardingCompletedProvider
             .overrideWith(() => OnboardingCompletedNotifier(onboardingDone)),
+        // Real Google Maps in the running app; tests leave this off and fall
+        // back to the canvas previews (a GoogleMap can't render headless).
+        mapsEnabledProvider.overrideWithValue(true),
       ],
       child: const WildlifeApp(),
     ),
