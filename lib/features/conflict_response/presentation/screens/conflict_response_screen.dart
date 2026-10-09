@@ -150,28 +150,26 @@ class _ConflictResponseScreenState
   }
 
   void _onSimulate(_SimAction action) {
-    // For demo purposes: instantly pop up an alert from the list
-    // so the user can assign a responder right away.
-    final user = ref.read(currentUserProvider);
-    final alerts = ref.read(riskAlertsProvider(user.parkId)).asData?.value ?? [];
-    
-    WildlifeRiskAlert? targetAlert;
-
+    // Simulated collar readings MUST still flow through the same domain /
+    // repository logic (AGENTS.md §7): _runTrigger processes the reading, then
+    // navigates to the resulting alert's details (inside zone) or reports that
+    // no alert was raised (outside zone). The buttons therefore demonstrate the
+    // real UC03 trigger pipeline, not a pre-filtered jump into the list.
+    final controller = ref.read(conflictControllerProvider.notifier);
+    final animalId = DemoData.trackedAnimals.first.id;
     switch (action) {
       case _SimAction.insideZone:
-        // Pop up the High Risk alert for the inside zone demo
-        targetAlert = alerts.where((a) => a.severity == AlertSeverity.high).firstOrNull;
-        break;
+        _runTrigger(() => controller.simulateCollarReading(
+              animalId: animalId,
+              latitude: DemoData.insideRiskZonePoint.latitude,
+              longitude: DemoData.insideRiskZonePoint.longitude,
+            ));
       case _SimAction.outsideZone:
-        // Pop up a different (Medium Risk) alert for the outside zone demo
-        targetAlert = alerts.where((a) => a.severity == AlertSeverity.medium).firstOrNull;
-        break;
-    }
-    
-    if (targetAlert != null) {
-      context.push(AppRoutes.alertDetailsFor(targetAlert.id));
-    } else {
-      _showPopup('Result', 'No matching alerts found in the list.');
+        _runTrigger(() => controller.simulateCollarReading(
+              animalId: animalId,
+              latitude: DemoData.outsideRiskZonePoint.latitude,
+              longitude: DemoData.outsideRiskZonePoint.longitude,
+            ));
     }
   }
 }
