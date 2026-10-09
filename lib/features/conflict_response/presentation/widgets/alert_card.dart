@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/models/wildlife_risk_alert.dart';
 import 'status_chip.dart';
 
@@ -11,12 +12,14 @@ class AlertCard extends StatelessWidget {
     required this.alert,
     required this.zoneName,
     this.animalCode,
+    this.isOverdue = false,
     this.onTap,
   });
 
   final WildlifeRiskAlert alert;
   final String zoneName;
   final String? animalCode;
+  final bool isOverdue;
   final VoidCallback? onTap;
 
   @override
@@ -42,6 +45,14 @@ class AlertCard extends StatelessWidget {
                       ),
                     ),
                   ),
+                  if (isOverdue) ...[
+                    const StatusChip(
+                      label: 'Overdue',
+                      color: AppColors.error,
+                      icon: Icons.timer_off,
+                    ),
+                    const SizedBox(width: 6),
+                  ],
                   AlertStatusChip(alert.status),
                 ],
               ),

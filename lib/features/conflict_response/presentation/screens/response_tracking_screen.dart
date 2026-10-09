@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
 
 import '../../../../core/enums/app_enums.dart';
 import '../../../../core/routing/app_router.dart';
@@ -13,12 +14,13 @@ import '../providers/conflict_providers.dart';
 import '../widgets/lifecycle_timeline.dart';
 import '../widgets/status_chip.dart';
 
-/// Screens 7 & 8 — Response Tracking + Resolved (Park Manager). Shows the full
-/// lifecycle, escalation state when acknowledgement is overdue, and the Resolve
-/// action once an outcome exists. After resolution it becomes the status-history
-/// view.
+/// Screen 7 — Response Tracking (Park Manager). Real-time view of the active
+/// response: responder details, notification delivery state with retry,
+/// acknowledgement status, escalation triggers with configurable thresholds,
+/// and live status transition history.
 class ResponseTrackingScreen extends ConsumerStatefulWidget {
   const ResponseTrackingScreen({super.key, required this.alertId});
+
   final String alertId;
 
   @override
@@ -39,13 +41,11 @@ class _ResponseTrackingScreenState
       ));
   }
 
-  Future<void> _resolve() async {
+  Future<void> _run(Future<void> Function() action, String okMessage) async {
     setState(() => _busy = true);
     try {
-      await ref
-          .read(conflictControllerProvider.notifier)
-          .resolveAlert(widget.alertId);
-      if (mounted) _snack('Alert resolved.');
+      await action();
+      if (mounted) _snack(okMessage);
     } catch (e) {
       if (mounted) _snack('$e', error: true);
     } finally {
@@ -53,10 +53,32 @@ class _ResponseTrackingScreenState
     }
   }
 
+  Future<void> _resolve() async {
+    await _run(
+      () => ref
+          .read(conflictControllerProvider.notifier)
+          .resolveAlert(widget.alertId),
+      'Alert resolved successfully.',
+    );
+  }
+
+  Future<void> _retryDelivery(String assignmentId) async {
+    await _run(
+      () => ref
+          .read(conflictControllerProvider.notifier)
+          .retryNotificationDelivery(assignmentId),
+      'Notification delivery re-attempted and updated.',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final alertAsync = ref.watch(alertProvider(widget.alertId));
-    final assignmentAsync = ref.watch(activeAssignmentProvider(widget.alertId));
+    final assignmentAsync =
+        ref.watch(activeAssignmentProvider(widget.alertId));
+    final config = ref.watch(conflictConfigProvider);
+    final thresholdMinutes =
+        ref.watch(acknowledgementThresholdMinutesProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Response Tracking')),
@@ -70,8 +92,13 @@ class _ResponseTrackingScreenState
           final assignment = assignmentAsync.asData?.value;
           final overdue = assignment != null &&
               AcknowledgementMonitor.isOverdue(assignment,
-                  now: DateTime.now());
-          return _content(alert, assignment, overdue);
+                  now: DateTime.now(), config: config);
+          return _content(
+            alert,
+            assignment,
+            overdue,
+            thresholdMinutes,
+          );
         },
       ),
     );
@@ -81,6 +108,7 @@ class _ResponseTrackingScreenState
     WildlifeRiskAlert alert,
     ResponseAssignment? assignment,
     bool overdue,
+    int thresholdMinutes,
   ) {
     final resolved = alert.status == AlertStatus.resolved;
     return ListView(
@@ -93,6 +121,8 @@ class _ResponseTrackingScreenState
             AlertStatusChip(alert.status),
           ],
         ),
+        const SizedBox(height: 12),
+        _thresholdSelector(thresholdMinutes, alert),
         const SizedBox(height: 16),
         if (assignment != null) _responderCard(assignment),
         const SizedBox(height: 16),
@@ -104,14 +134,80 @@ class _ResponseTrackingScreenState
           assignment: assignment,
           overdue: overdue,
         ),
-        const SizedBox(height: 8),
-        if (resolved)
-          _statusHistory()
-        else ...[
+        const SizedBox(height: 12),
+        if (!resolved) ...[
           if (overdue) _escalationActions(),
           _resolveButton(alert, assignment),
+          const SizedBox(height: 16),
         ],
+        _statusHistory(alert.id),
+        const SizedBox(height: 20),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton(
+            onPressed: () => context.go(AppRoutes.conflictResponse),
+            child: const Text('Back to Alerts'),
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _thresholdSelector(int currentMinutes, WildlifeRiskAlert alert) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.tune, size: 18, color: AppColors.primary),
+              const SizedBox(width: 6),
+              const Text(
+                'Ack Escalation Threshold:',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              ),
+              const Spacer(),
+              StatusChip(
+                label: '$currentMinutes min',
+                color: AppColors.primary,
+                icon: Icons.timer,
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              for (final mins in [1, 5, 15, 30]) ...[
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ChoiceChip(
+                    label: Text(mins == 1 ? '1m (Demo)' : '${mins}m'),
+                    selected: currentMinutes == mins,
+                    onSelected: (selected) {
+                      if (selected) {
+                        ref
+                            .read(acknowledgementThresholdMinutesProvider
+                                .notifier)
+                            .setThreshold(mins);
+                        // Trigger check and escalate if active
+                        ref
+                            .read(conflictControllerProvider.notifier)
+                            .checkAndEscalateOverdue(alert.parkId);
+                      }
+                    },
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -131,12 +227,36 @@ class _ResponseTrackingScreenState
                 style: const TextStyle(fontWeight: FontWeight.w700)),
             Text(ConflictLabels.responderRole(a.responderRole),
                 style: TextStyle(color: Colors.grey.shade700)),
-            const SizedBox(height: 8),
-            StatusChip(
-              label: ConflictLabels.delivery(a.deliveryState),
-              color: ConflictLabels.deliveryColor(a.deliveryState),
-              icon: Icons.notifications_active_outlined,
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                StatusChip(
+                  label: ConflictLabels.delivery(a.deliveryState),
+                  color: ConflictLabels.deliveryColor(a.deliveryState),
+                  icon: a.deliveryState == DeliveryState.delivered
+                      ? Icons.check_circle_outline
+                      : (a.deliveryState == DeliveryState.pending
+                          ? Icons.schedule
+                          : Icons.error_outline),
+                ),
+                if (a.deliveredAt != null) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    DateFormat('HH:mm:ss').format(a.deliveredAt!.toLocal()),
+                    style:
+                        TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                ],
+              ],
             ),
+            if (a.deliveryState != DeliveryState.delivered) ...[
+              const SizedBox(height: 8),
+              OutlinedButton.icon(
+                onPressed: _busy ? null : () => _retryDelivery(a.id),
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Retry Notification Delivery'),
+              ),
+            ],
             if ((a.statusNote ?? '').isNotEmpty) ...[
               const SizedBox(height: 8),
               Text('Note: ${a.statusNote}'),
@@ -159,7 +279,8 @@ class _ResponseTrackingScreenState
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const StatusChip(
-            label: 'No acknowledgement in time — reassign another responder',
+            label:
+                'Acknowledgement overdue — threshold exceeded. Reassign responder:',
             color: AppColors.error,
             icon: Icons.priority_high,
           ),
@@ -222,40 +343,94 @@ class _ResponseTrackingScreenState
         ),
       );
 
-  Widget _statusHistory() {
-    const steps = [
-      'NEW',
-      'ASSIGNED',
-      'ACKNOWLEDGED',
-      'RESPONSE_IN_PROGRESS',
-      'RESOLVED',
-    ];
+  Widget _statusHistory(String alertId) {
+    final historyAsync = ref.watch(alertStatusHistoryProvider(alertId));
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 8),
-        const Text('Status history',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          crossAxisAlignment: WrapCrossAlignment.center,
+        const Row(
           children: [
-            for (var i = 0; i < steps.length; i++) ...[
-              StatusChip(label: steps[i], color: AppColors.primary),
-              if (i < steps.length - 1)
-                const Icon(Icons.arrow_forward, size: 16),
-            ],
+            Icon(Icons.history, size: 20, color: AppColors.primary),
+            SizedBox(width: 8),
+            Text('Status Transition History (Audit Log)',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
           ],
         ),
-        const SizedBox(height: 20),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton(
-            onPressed: () => context.go(AppRoutes.conflictResponse),
-            child: const Text('Back to Alerts'),
-          ),
+        const SizedBox(height: 8),
+        historyAsync.when(
+          loading: () => const LinearProgressIndicator(),
+          error: (e, _) => Text('Error loading history: $e'),
+          data: (history) {
+            if (history.isEmpty) {
+              return Text('No status transitions recorded yet.',
+                  style:
+                      TextStyle(color: Colors.grey.shade600, fontSize: 13));
+            }
+            return Column(
+              children: [
+                for (final change in history)
+                  Card(
+                    margin: const EdgeInsets.symmetric(vertical: 4),
+                    child: Padding(
+                      padding: const EdgeInsets.all(10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Icon(
+                            change.toStatus == AlertStatus.resolved
+                                ? Icons.check_circle
+                                : Icons.arrow_circle_right_outlined,
+                            size: 20,
+                            color: ConflictLabels.alertColor(change.toStatus),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    StatusChip(
+                                      label: ConflictLabels.alertStatus(
+                                          change.toStatus),
+                                      color: ConflictLabels.alertColor(
+                                          change.toStatus),
+                                    ),
+                                    const Spacer(),
+                                    Text(
+                                      DateFormat('HH:mm:ss · MMM d')
+                                          .format(change.timestamp.toLocal()),
+                                      style: TextStyle(
+                                          fontSize: 11,
+                                          color: Colors.grey.shade600),
+                                    ),
+                                  ],
+                                ),
+                                if ((change.changedBy ?? '').isNotEmpty) ...[
+                                  const SizedBox(height: 4),
+                                  Text('By: ${change.changedBy}',
+                                      style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500)),
+                                ],
+                                if ((change.reason ?? '').isNotEmpty) ...[
+                                  const SizedBox(height: 2),
+                                  Text(change.reason!,
+                                      style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey.shade700)),
+                                ],
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
       ],
     );

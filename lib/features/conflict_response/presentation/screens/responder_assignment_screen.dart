@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/enums/app_enums.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/demo/demo_data.dart';
 import '../../../../shared/models/response_assignment.dart';
@@ -138,7 +139,42 @@ class _ResponderAssignmentScreenState
         _kv('Assigned at',
             DateFormat('MMM d, HH:mm').format(a.assignedAt.toLocal())),
         _kv('Assigned by', a.assignedBy),
-        _kv('Notification', ConflictLabels.delivery(a.deliveryState)),
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4),
+          child: Row(
+            children: [
+              const SizedBox(
+                width: 120,
+                child: Text('Notification',
+                    style: TextStyle(fontWeight: FontWeight.w600)),
+              ),
+              StatusChip(
+                label: ConflictLabels.delivery(a.deliveryState),
+                color: ConflictLabels.deliveryColor(a.deliveryState),
+                icon: a.deliveryState == DeliveryState.delivered
+                    ? Icons.check_circle_outline
+                    : (a.deliveryState == DeliveryState.pending
+                        ? Icons.schedule
+                        : Icons.error_outline),
+              ),
+              if (a.deliveryState != DeliveryState.delivered) ...[
+                const SizedBox(width: 8),
+                TextButton.icon(
+                  onPressed: _busy
+                      ? null
+                      : () => _run(
+                            () => ref
+                                .read(conflictControllerProvider.notifier)
+                                .retryNotificationDelivery(a.id),
+                            'Notification delivery retried.',
+                          ),
+                  icon: const Icon(Icons.refresh, size: 16),
+                  label: const Text('Retry'),
+                ),
+              ],
+            ],
+          ),
+        ),
         const SizedBox(height: 20),
         if (!isMine) ...[
           Text(
