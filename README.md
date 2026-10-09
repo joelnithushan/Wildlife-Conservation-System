@@ -480,6 +480,7 @@ Implemented on `feature/uc04-analytics` (UC04-S01, Park Manager and Conservation
 **Run UC04 tests:**
 ```bash
 flutter test test/analytics
+flutter test integration_test/analytics_report_flow_test.dart
 ```
 
 ### Running on Web
