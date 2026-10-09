@@ -35,6 +35,31 @@ void main() {
           isFalse);
     });
 
+    test('Ranger CAN open the incident creation flow (UC02-S01)', () {
+      // Regression: the guard previously allowed only the exact /incidents list,
+      // so "Report Incident" (/incidents/new) hit Access Denied on device.
+      for (final route in const [
+        AppRoutes.newIncident, // /incidents/new
+        AppRoutes.incidentType,
+        AppRoutes.incidentEvidence,
+        AppRoutes.incidentLocation,
+        AppRoutes.incidentReview,
+        '/incidents/result/abc123',
+      ]) {
+        expect(AccessPolicy.canAccess(UserRole.ranger, route), isTrue,
+            reason: 'ranger must reach $route to record an incident');
+      }
+    });
+
+    test('Ranger is still blocked from the manager incident review queue', () {
+      expect(
+          AccessPolicy.canAccess(UserRole.ranger, AppRoutes.incidentReviewQueue),
+          isFalse);
+      expect(
+          AccessPolicy.canAccess(UserRole.ranger, '/incidents/review/abc123'),
+          isFalse);
+    });
+
     test('17. Researcher is blocked from patrol management', () {
       expect(AccessPolicy.canAccess(
           UserRole.conservationResearcher, AppRoutes.patrol), isFalse);

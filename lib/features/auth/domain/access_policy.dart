@@ -34,6 +34,14 @@ abstract final class AccessPolicy {
     '/patrol-summary/',
   ];
 
+  /// Incident *creation* routes a Ranger may open (record + submit an incident).
+  /// Deliberately excludes the manager review queue (`/incidents/review*`),
+  /// which stays Park Manager only (AGENTS.md §14).
+  static const _incidentCreatePrefixes = <String>[
+    '/incidents/new',
+    '/incidents/result',
+  ];
+
   /// Conflict-response feature routes (list + parametrized detail flow).
   static const _conflictPrefixes = <String>[
     AppRoutes.conflictResponse,
@@ -62,6 +70,7 @@ abstract final class AccessPolicy {
           AppRoutes.incidents,
         };
         return exact.contains(location) ||
+            _startsWithAny(location, _incidentCreatePrefixes) ||
             _startsWithAny(location, _patrolViewPrefixes) ||
             _startsWithAny(location, _conflictPrefixes);
 
