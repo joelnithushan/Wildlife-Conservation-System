@@ -28,8 +28,17 @@ void main() {
 
   /// Drives whatever screen is showing to the login screen (handles startup,
   /// onboarding and a restored session).
+  // Settle a few frames without pumpAndSettle, which can hang on a real device
+  // where Firebase keeps the frame scheduler busy (e.g. profile photo loads).
+  Future<void> settle(WidgetTester tester,
+      [Duration step = const Duration(milliseconds: 300), int frames = 6]) async {
+    for (var i = 0; i < frames; i++) {
+      await tester.pump(step);
+    }
+  }
+
   Future<bool> reachLogin(WidgetTester tester,
-      {Duration timeout = const Duration(seconds: 45)}) async {
+      {Duration timeout = const Duration(seconds: 120)}) async {
     final end = DateTime.now().add(timeout);
     while (DateTime.now().isBefore(end)) {
       await tester.pump(const Duration(milliseconds: 400));
@@ -38,34 +47,43 @@ void main() {
       final skip = find.text('Skip');
       if (skip.evaluate().isNotEmpty) {
         await tester.tap(skip);
-        await tester.pumpAndSettle();
+        await settle(tester);
         continue;
       }
 
-      // On the profile screen: scroll to and tap Sign Out, then confirm.
+      // If Sign Out isn't on screen yet, make sure we're on the Profile screen
+      // and scroll it into view. (The button starts below the fold on longer
+      // non-admin profiles, so searching without scrolling never finds it.)
+      if (find.widgetWithText(OutlinedButton, 'Sign Out').evaluate().isEmpty) {
+        final profileTab = find.text('Profile');
+        if (profileTab.evaluate().isNotEmpty) {
+          await tester.tap(profileTab.last, warnIfMissed: false);
+          await settle(tester);
+        }
+        final scrollable = find.byType(Scrollable);
+        if (scrollable.evaluate().isNotEmpty) {
+          try {
+            await tester.drag(scrollable.first, const Offset(0, -500));
+            await settle(tester);
+          } catch (_) {/* nothing scrollable — ignore */}
+        }
+      }
+
+      // On the profile screen with Sign Out visible: tap it, then confirm.
       final signOut = find.widgetWithText(OutlinedButton, 'Sign Out');
       if (signOut.evaluate().isNotEmpty) {
-        await tester.scrollUntilVisible(signOut, 250,
-            scrollable: find.byType(Scrollable).first);
-        await tester.pumpAndSettle();
-        await tester.tap(signOut);
-        await tester.pumpAndSettle();
+        await tester.tap(signOut, warnIfMissed: false);
+        await settle(tester);
         final confirm = find.widgetWithText(FilledButton, 'Sign Out');
         if (await pumpUntil(tester, confirm,
-            timeout: const Duration(seconds: 5))) {
-          await tester.tap(confirm);
-          await tester.pumpAndSettle();
+            timeout: const Duration(seconds: 8))) {
+          await tester.tap(confirm, warnIfMissed: false);
+          await settle(tester);
         }
-        // Wait for the sign-out redirect back to login.
+        // Wait for the sign-out redirect back to login (Firebase signOut +
+        // router redirect can take a while on a real device).
         await pumpUntil(tester, find.text('SIGN IN'),
-            timeout: const Duration(seconds: 10));
-        continue;
-      }
-      // On a dashboard: open the Profile tab to reach the Sign Out button.
-      final profileTab = find.text('Profile');
-      if (profileTab.evaluate().isNotEmpty) {
-        await tester.tap(profileTab.last);
-        await tester.pumpAndSettle();
+            timeout: const Duration(seconds: 30));
         continue;
       }
     }
