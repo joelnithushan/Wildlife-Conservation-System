@@ -21,7 +21,7 @@ class CloDashboardScreen extends ConsumerWidget {
         DashboardAction(
           icon: Icons.crisis_alert_outlined,
           title: 'Assigned Conflict Responses',
-          subtitle: 'Wildlife conflict responses for your community (UC03)',
+          subtitle: 'Wildlife conflict responses for your community',
           color: AppColors.error,
           onTap: () => context.push(AppRoutes.conflictResponse),
         ),
