@@ -127,6 +127,26 @@ void main() {
     await service.dispose();
   });
 
+  test('a failed record still counts as awaiting sync (badge not understated)',
+      () async {
+    await assignedPatrolWithPosition();
+    final remote = FlakyRemoteWriter(InMemoryRemoteWriter(), failuresRemaining: 99);
+    final service = DefaultSyncService(store: store, remote: remote);
+
+    // Sync fails -> rows are marked failed, not synchronized.
+    await service.syncPendingPatrolData();
+    expect((await db.select(db.patrolsTable).get()).single.syncState,
+        SyncState.failed.wire);
+
+    // The ranger's "awaiting sync" view must still include the failed rows,
+    // so pendingRecordCountProvider does not drop to zero while data is unsynced.
+    expect(await local.getPendingPositions(), isNotEmpty,
+        reason: 'failed position is still awaiting sync');
+    expect(await local.getPendingPatrols(), hasLength(1),
+        reason: 'failed patrol is still awaiting sync');
+    await service.dispose();
+  });
+
   test('failed records auto-retry on the next sync run (no manual reset)',
       () async {
     await assignedPatrolWithPosition();

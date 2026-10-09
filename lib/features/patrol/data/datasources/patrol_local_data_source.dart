@@ -62,16 +62,26 @@ class PatrolLocalDataSource {
     return rows.map((r) => r.toDomain()).toList();
   }
 
+  // "Awaiting sync" means not yet acknowledged by the backend: still pending OR
+  // left failed by a previous attempt. Both are what the sync service retries
+  // (see DriftLocalSyncStore), so the unsynced count must include failed rows —
+  // otherwise a failed sync makes them vanish from the ranger's badge while the
+  // data is still only on the device.
+  static final List<String> _awaitingSyncStates = [
+    SyncState.pending.wire,
+    SyncState.failed.wire,
+  ];
+
   Future<List<Patrol>> getPendingPatrols() async {
     final query = _db.select(_db.patrolsTable)
-      ..where((t) => t.syncState.equals(SyncState.pending.wire));
+      ..where((t) => t.syncState.isIn(_awaitingSyncStates));
     final rows = await query.get();
     return rows.map((r) => r.toDomain()).toList();
   }
 
   Future<List<PatrolPosition>> getPendingPositions() async {
     final query = _db.select(_db.patrolPositionsTable)
-      ..where((t) => t.syncState.equals(SyncState.pending.wire));
+      ..where((t) => t.syncState.isIn(_awaitingSyncStates));
     final rows = await query.get();
     return rows.map((r) => r.toDomain()).toList();
   }
