@@ -25,6 +25,13 @@ class CloDashboardScreen extends ConsumerWidget {
           color: AppColors.error,
           onTap: () => context.push(AppRoutes.conflictResponse),
         ),
+        DashboardAction(
+          icon: Icons.campaign_outlined,
+          title: 'Report Conflict (Community / SMS)',
+          subtitle: 'Submit a sighting or simulate an SMS conflict report',
+          color: AppColors.primary,
+          onTap: () => context.push(AppRoutes.reportConflict),
+        ),
       ],
     );
   }

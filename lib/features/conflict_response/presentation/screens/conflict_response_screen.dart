@@ -11,6 +11,7 @@ import '../../../../shared/session/current_user.dart';
 import '../../../auth/domain/access_policy.dart';
 import '../providers/conflict_providers.dart';
 import '../widgets/alert_card.dart';
+import '../widgets/status_chip.dart';
 import 'community_reports_sheet.dart';
 
 /// Screen 1 — Risk Alerts (Park Manager). Lists alerts with source, zone,
@@ -89,6 +90,11 @@ class _ConflictResponseScreenState
         title: const Text('Risk Alerts'),
         actions: [
           IconButton(
+            tooltip: 'Report Conflict (Community / SMS)',
+            icon: const Icon(Icons.campaign_outlined),
+            onPressed: () => context.push(AppRoutes.reportConflict),
+          ),
+          IconButton(
             tooltip: 'Community reports',
             icon: const Icon(Icons.groups_outlined),
             onPressed: () => showModalBottomSheet<void>(
@@ -107,6 +113,48 @@ class _ConflictResponseScreenState
       floatingActionButton: _SimulateButton(onSelected: _onSimulate),
       body: Column(
         children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+            child: Row(
+              children: [
+                Consumer(
+                  builder: (context, ref, _) {
+                    final mins = ref
+                        .watch(acknowledgementThresholdMinutesProvider);
+                    return StatusChip(
+                      label: 'Escalation Threshold: ${mins}m',
+                      color: AppColors.primary,
+                      icon: Icons.timer_outlined,
+                    );
+                  },
+                ),
+                const Spacer(),
+                TextButton.icon(
+                  onPressed: () async {
+                    final escalated = await ref
+                        .read(conflictControllerProvider.notifier)
+                        .checkAndEscalateOverdue(parkId);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            escalated.isEmpty
+                                ? 'No alerts currently overdue.'
+                                : 'Escalated ${escalated.length} overdue alert(s).',
+                          ),
+                          backgroundColor: escalated.isEmpty
+                              ? AppColors.primary
+                              : AppColors.error,
+                        ),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.alarm, size: 16),
+                  label: const Text('Check Overdue'),
+                ),
+              ],
+            ),
+          ),
           _FilterBar(
             selected: _filter,
             onSelected: (s) => setState(() => _filter = s),

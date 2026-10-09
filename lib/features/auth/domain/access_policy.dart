@@ -22,6 +22,7 @@ abstract final class AccessPolicy {
     AppRoutes.profile,
     AppRoutes.accessDenied,
     AppRoutes.accountIssue,
+    AppRoutes.reportConflict,
   };
 
   /// Parametrized patrol *view* routes (viewing an assigned patrol). These are

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../../../core/routing/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/session/current_user.dart';
 import '../providers/conflict_providers.dart';
@@ -27,9 +29,22 @@ class CommunityReportsSheet extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Community Reports',
-                  style:
-                      TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Community Reports',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                  TextButton.icon(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      context.push(AppRoutes.reportConflict);
+                    },
+                    icon: const Icon(Icons.add, size: 18),
+                    label: const Text('New Report'),
+                  ),
+                ],
+              ),
               const SizedBox(height: 4),
               Text(
                 'Verify credible reports to raise or update an alert.',
@@ -61,12 +76,24 @@ class CommunityReportsSheet extends ConsumerWidget {
                                 Row(
                                   children: [
                                     Expanded(child: Text(r.description)),
-                                    if (r.verified)
+                                    const SizedBox(width: 8),
+                                    StatusChip(
+                                      label: r.channel,
+                                      color: r.channel == 'APP'
+                                          ? AppColors.success
+                                          : AppColors.warning,
+                                      icon: r.channel == 'APP'
+                                          ? Icons.phone_android
+                                          : Icons.sms,
+                                    ),
+                                    if (r.verified) ...[
+                                      const SizedBox(width: 6),
                                       const StatusChip(
                                         label: 'Verified',
                                         color: AppColors.success,
                                         icon: Icons.verified,
                                       ),
+                                    ],
                                   ],
                                 ),
                                 const SizedBox(height: 6),
