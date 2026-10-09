@@ -20,6 +20,7 @@ import '../../features/auth/presentation/screens/profile_screen.dart';
 import '../../features/conflict_response/presentation/screens/alert_details_screen.dart';
 import '../../features/conflict_response/presentation/screens/assign_responder_screen.dart';
 import '../../features/conflict_response/presentation/screens/conflict_response_screen.dart';
+import '../../features/conflict_response/presentation/screens/report_conflict_screen.dart';
 import '../../features/conflict_response/presentation/screens/responder_assignment_screen.dart';
 import '../../features/conflict_response/presentation/screens/response_tracking_screen.dart';
 import '../../features/incidents/presentation/screens/incident_evidence_screen.dart';
@@ -99,6 +100,7 @@ abstract final class AppRoutes {
   static String incidentReviewDetailFor(String id) => '/incidents/review/$id';
 
   // UC03 conflict-response flow (outside the bottom-nav shell).
+  static const reportConflict = '/report-conflict';
   static const alertDetails = '/alert-details/:id';
   static const assignResponder = '/assign-responder/:id';
   static const responderAssignment = '/responder-assignment/:id';
@@ -138,6 +140,7 @@ String? _guard(Ref ref, String location) {
       AppRoutes.login,
       AppRoutes.forgotPassword,
       AppRoutes.onboarding,
+      AppRoutes.reportConflict,
     };
     return allowed.contains(location) ? null : AppRoutes.login;
   }
@@ -332,6 +335,10 @@ GoRouter appRouter(Ref ref) {
       ),
 
       // UC03 – Coordinate Wildlife Conflict Response
+      GoRoute(
+        path: AppRoutes.reportConflict,
+        builder: (context, state) => const ReportConflictScreen(),
+      ),
       GoRoute(
         path: AppRoutes.alertDetails,
         builder: (context, state) =>
