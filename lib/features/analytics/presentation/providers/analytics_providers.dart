@@ -4,6 +4,7 @@ import '../../../../core/database/app_database.dart';
 import '../../../../shared/providers/providers.dart';
 import '../../../../shared/repositories/report_export_service.dart';
 import '../../../../shared/repositories/report_repository.dart';
+import '../../data/drift_alert_read_store.dart';
 import '../../data/drift_report_read_store.dart';
 import '../../data/firestore_alert_read_store.dart';
 import '../../data/report_export_service_impl.dart';
@@ -11,11 +12,12 @@ import '../../data/report_read_store.dart';
 import '../../data/report_repository_impl.dart';
 
 final reportReadStoreProvider = Provider<ReportReadStore>((ref) {
+  final db = ref.watch(appDatabaseProvider);
   final alerts = ref.watch(firebaseReadyProvider)
       ? FirestoreAlertReadStore()
-      : const EmptyAlertReadStore();
+      : DriftAlertReadStore(db);
   return DriftReportReadStore(
-    ref.watch(appDatabaseProvider),
+    db,
     alerts: alerts,
   );
 });
