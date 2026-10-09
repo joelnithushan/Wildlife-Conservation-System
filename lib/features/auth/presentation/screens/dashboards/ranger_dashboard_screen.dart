@@ -21,20 +21,20 @@ class RangerDashboardScreen extends ConsumerWidget {
         DashboardAction(
           icon: Icons.route_outlined,
           title: 'My Patrols',
-          subtitle: 'View and run your assigned patrols (UC01)',
+          subtitle: 'View and run your assigned patrols',
           onTap: () => context.push(AppRoutes.patrol),
         ),
         DashboardAction(
           icon: Icons.report_gmailerrorred_outlined,
           title: 'Report Incident',
-          subtitle: 'Log a wildlife incident (UC02)',
+          subtitle: 'Log a wildlife incident',
           color: AppColors.warning,
           onTap: () => context.push(AppRoutes.incidents),
         ),
         DashboardAction(
           icon: Icons.crisis_alert_outlined,
           title: 'Assigned Response',
-          subtitle: 'Conflict responses assigned to you (UC03)',
+          subtitle: 'Conflict responses assigned to you',
           color: AppColors.error,
           onTap: () => context.push(AppRoutes.conflictResponse),
         ),

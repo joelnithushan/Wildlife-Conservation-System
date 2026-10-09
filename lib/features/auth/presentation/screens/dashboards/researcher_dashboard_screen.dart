@@ -21,7 +21,7 @@ class ResearcherDashboardScreen extends ConsumerWidget {
         DashboardAction(
           icon: Icons.insights_outlined,
           title: 'Conservation Reports',
-          subtitle: 'Generate analytics and export reports (UC04)',
+          subtitle: 'Generate analytics and export reports',
           color: AppColors.secondary,
           onTap: () => context.push(AppRoutes.analytics),
         ),
