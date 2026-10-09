@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_map.dart';
 import '../../../../shared/models/geo_coordinate.dart';
 import '../../../../shared/models/patrol_position.dart';
+import '../../../../shared/providers/providers.dart';
 
-/// Lightweight map-free route preview.
-///
-/// Plots the planned path (line) and recorded positions (dots) on a normalized
-/// canvas. Used instead of a live map so the app runs without a Google Maps API
-/// key; `google_maps_flutter` can replace this later without touching callers.
-class RoutePreview extends StatelessWidget {
+/// Route preview. Renders a real Google map when maps are enabled, otherwise a
+/// lightweight canvas preview (so the app runs without a key and headless tests
+/// stay deterministic). Plots the planned path (line) and recorded positions
+/// (dots/markers).
+class RoutePreview extends ConsumerWidget {
   const RoutePreview({
     super.key,
     required this.plannedPath,
@@ -22,7 +24,14 @@ class RoutePreview extends StatelessWidget {
   final double height;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (ref.watch(mapsEnabledProvider)) {
+      return GoogleRouteMap(
+        plannedPath: plannedPath,
+        positions: positions,
+        height: height,
+      );
+    }
     return Container(
       height: height,
       width: double.infinity,

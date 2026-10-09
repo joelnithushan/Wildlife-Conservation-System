@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_map.dart';
+import '../../../../shared/providers/providers.dart';
 import '../../../incidents/presentation/widgets/cached_park_map.dart';
 import '../providers/conflict_providers.dart';
 import '../widgets/status_chip.dart';
@@ -252,20 +254,30 @@ class _ReportConflictScreenState extends ConsumerState<ReportConflictScreen> {
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                   ),
                   const SizedBox(height: 8),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: CachedParkMap(
-                      height: 220,
-                      latitude: _latitude,
-                      longitude: _longitude,
-                      onChanged: (pos) {
-                        setState(() {
-                          _latitude = pos.latitude;
-                          _longitude = pos.longitude;
-                        });
-                      },
-                    ),
-                  ),
+                  Builder(builder: (context) {
+                    void onPoint(({double latitude, double longitude}) pos) {
+                      setState(() {
+                        _latitude = pos.latitude;
+                        _longitude = pos.longitude;
+                      });
+                    }
+
+                    return ref.watch(mapsEnabledProvider)
+                        ? GoogleLocationPicker(
+                            height: 220,
+                            latitude: _latitude,
+                            longitude: _longitude,
+                            onChanged: onPoint)
+                        : ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: CachedParkMap(
+                              height: 220,
+                              latitude: _latitude,
+                              longitude: _longitude,
+                              onChanged: onPoint,
+                            ),
+                          );
+                  }),
                   const SizedBox(height: 24),
 
                   // Submit Actions

@@ -6,8 +6,9 @@ import 'package:intl/intl.dart';
 import '../../../../core/enums/app_enums.dart';
 import '../../../../core/routing/app_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/app_map.dart';
 import '../../../../shared/models/wildlife_risk_alert.dart';
-import '../../../../shared/session/current_user.dart';
+import '../../../../shared/providers/providers.dart';
 import '../providers/conflict_providers.dart';
 import '../widgets/status_chip.dart';
 
@@ -78,8 +79,11 @@ class AlertDetailsScreen extends ConsumerWidget {
                           .format(alert.resolvedAt!.toLocal())),
               ]),
               const SizedBox(height: 12),
-              _MapPlaceholder(
-                  latitude: alert.latitude, longitude: alert.longitude),
+              ref.watch(mapsEnabledProvider)
+                  ? GooglePointMap(
+                      latitude: alert.latitude, longitude: alert.longitude)
+                  : _MapPlaceholder(
+                      latitude: alert.latitude, longitude: alert.longitude),
               const SizedBox(height: 20),
               _actions(context, alert),
             ],
