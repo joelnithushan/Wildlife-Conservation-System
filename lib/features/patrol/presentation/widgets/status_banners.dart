@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_theme.dart';
 
 /// Amber banner shown while the device is offline during a patrol.
@@ -12,7 +13,7 @@ class OfflineBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Banner(
       color: AppColors.warning,
-      icon: Icons.cloud_off,
+      icon: AppIcons.pendingSync,
       title: 'Offline – positions saved on this device',
       subtitle: '$pendingCount record(s) pending sync',
     );
@@ -30,7 +31,7 @@ class SyncBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Banner(
       color: AppColors.success,
-      icon: Icons.cloud_done,
+      icon: AppIcons.synced,
       title: isSyncing ? 'Back online – synchronizing' : message,
       subtitle: isSyncing ? message : null,
       trailing: isSyncing

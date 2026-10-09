@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/theme/app_icons.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/date_extensions.dart';
 import '../../../../shared/models/conservation_report.dart';
@@ -64,7 +65,7 @@ class ReportResultsView extends ConsumerWidget {
               _SummaryCard(
                 label: 'Total incidents',
                 value: '${report.totalIncidents}',
-                icon: Icons.warning_amber,
+                icon: AppIcons.warning,
                 color: AppColors.warning,
               ),
               _SummaryCard(
