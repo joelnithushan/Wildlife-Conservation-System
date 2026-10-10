@@ -68,7 +68,11 @@ class DriftLocalSyncStore implements LocalSyncStore {
     switch (item.collection) {
       case FirestoreCollections.patrols:
         await (_db.update(_db.patrolsTable)..where((t) => t.id.equals(item.id)))
-            .write(PatrolsTableCompanion(syncState: Value(state.wire)));
+            .write(PatrolsTableCompanion(
+          syncState: Value(state.wire),
+          // Stamp the row so Patrol Details can show a real "last synced" time.
+          updatedAt: Value(DateTime.now()),
+        ));
       case FirestoreCollections.patrolPositions:
         await (_db.update(_db.patrolPositionsTable)
               ..where((t) => t.id.equals(item.id)))

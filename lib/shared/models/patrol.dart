@@ -18,6 +18,7 @@ class Patrol extends Equatable {
     this.completedAt,
     this.coveragePercent,
     this.syncState = SyncState.pending,
+    this.updatedAt,
   });
 
   /// Creates a new patrol with a stable client-generated ID.
@@ -48,6 +49,10 @@ class Patrol extends Equatable {
   final DateTime? completedAt;
   final double? coveragePercent;
   final SyncState syncState;
+
+  /// When the local row was last written (save or sync acknowledgement). Local
+  /// only — not sent to Firestore. Used to show a "last synced" time in the UI.
+  final DateTime? updatedAt;
 
   Patrol copyWith({
     PatrolStatus? status,
