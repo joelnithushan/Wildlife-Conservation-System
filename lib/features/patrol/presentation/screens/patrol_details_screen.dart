@@ -72,6 +72,8 @@ class PatrolDetailsScreen extends ConsumerWidget {
               if (patrol.startedAt != null)
                 _InfoRow('Started', patrol.startedAt!.toDisplayDateTime()),
               _InfoRow('Sync state', patrol.syncState.name),
+              if (patrol.updatedAt != null)
+                _InfoRow('Last synced', patrol.updatedAt!.toDisplayDateTime()),
               const SizedBox(height: 24),
               if (patrol.status == PatrolStatus.inProgress)
                 FilledButton.icon(

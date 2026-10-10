@@ -22,6 +22,7 @@ extension PatrolRowMapper on PatrolsTableData {
         coveragePercent: coveragePercent,
         syncState:
             parseEnum(SyncState.values, syncState, fallback: SyncState.pending),
+        updatedAt: updatedAt,
       );
 }
 

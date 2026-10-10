@@ -19,8 +19,12 @@ import '../../data/repositories/patrol_repository_impl.dart';
 export '../../../../shared/providers/providers.dart'
     show locationServiceProvider, remoteWriterProvider, syncServiceProvider;
 
-/// All patrol routes available for assignment (demo seed).
-final patrolRoutesProvider = Provider<List<PatrolRoute>>((_) => DemoData.routes);
+/// Patrol routes available for assignment in the current user's park. A Park
+/// Manager only assigns routes that belong to their own park (UC01-S01 step 2).
+final patrolRoutesProvider = Provider<List<PatrolRoute>>((ref) {
+  final parkId = ref.watch(currentUserProvider).parkId;
+  return DemoData.routes.where((r) => r.parkId == parkId).toList();
+});
 
 PatrolRoute? _routeById(String id) {
   for (final route in DemoData.routes) {
