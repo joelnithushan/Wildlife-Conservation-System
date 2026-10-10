@@ -96,10 +96,10 @@ class IncidentCategoryChart extends StatelessWidget {
   }
 
   static String _short(IncidentCategory category) => switch (category) {
-        IncidentCategory.poaching => 'Poach',
-        IncidentCategory.animalInjury => 'Injury',
-        IncidentCategory.humanWildlifeConflict => 'Conflict',
-        IncidentCategory.illegalLogging => 'Logging',
+        IncidentCategory.snare => 'Snare',
+        IncidentCategory.carcass => 'Carcass',
+        IncidentCategory.illegalCampsite => 'Camp',
+        IncidentCategory.suspiciousFootprints => 'Prints',
         IncidentCategory.other => 'Other',
       };
 }

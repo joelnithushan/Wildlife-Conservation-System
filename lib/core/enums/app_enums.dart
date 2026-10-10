@@ -48,10 +48,10 @@ enum ResponderRole { ranger, communityLiaisonOfficer }
 enum AlertSource { collar, communityReport }
 
 enum IncidentCategory {
-  poaching,
-  animalInjury,
-  humanWildlifeConflict,
-  illegalLogging,
+  snare,
+  carcass,
+  illegalCampsite,
+  suspiciousFootprints,
   other,
 }
 

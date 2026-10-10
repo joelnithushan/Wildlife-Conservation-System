@@ -44,8 +44,8 @@ void main() {
     expect(FieldIncidentDraft.incidentTypeLabels, [
       'Snare',
       'Carcass',
-      'Illegal Campsite',
-      'Footprints',
+      'Illegal campsite',
+      'Suspicious footprints',
       'Other',
     ]);
   });

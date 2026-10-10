@@ -183,10 +183,12 @@ class _StatsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _StatCard(label: 'Positions', value: '$positionCount'),
+        Expanded(child: _StatCard(label: 'Positions', value: '$positionCount')),
         const SizedBox(width: 12),
         if (showPending)
-          _StatCard(label: 'Pending', value: '$pending', highlight: true)
+          Expanded(
+            child: _StatCard(label: 'Pending', value: '$pending', highlight: true),
+          )
         else
           Expanded(
             child: StreamBuilder<int>(
@@ -224,25 +226,24 @@ class _StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = highlight ? AppColors.warning : AppColors.textPrimary;
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: Colors.grey.shade300),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label,
-                style: const TextStyle(fontSize: 12, color: Colors.grey)),
-            const SizedBox(height: 4),
-            Text(value,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold, color: color)),
-          ],
-        ),
+    // NOTE: not self-Expanded — callers wrap this in Expanded inside the Row so
+    // it works uniformly whether it is a direct child or nested in a builder.
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+          const SizedBox(height: 4),
+          Text(value,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold, color: color)),
+        ],
       ),
     );
   }

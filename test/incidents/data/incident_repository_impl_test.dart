@@ -23,7 +23,7 @@ IncidentReport validDraft({
   String id = 'incident_test_1',
   String rangerId = 'R001',
   String parkId = 'PARK-MIN',
-  IncidentCategory category = IncidentCategory.poaching,
+  IncidentCategory category = IncidentCategory.snare,
   String description = 'Wire snare near the river crossing',
   DateTime? observedAt,
   double latitude = 8.03,
@@ -74,7 +74,7 @@ void main() {
       expect(saved.id, 'incident_test_1');
       final stored = await repo.getIncident('incident_test_1');
       expect(stored, isNotNull);
-      expect(stored!.category, IncidentCategory.poaching);
+      expect(stored!.category, IncidentCategory.snare);
       expect(stored.submissionStatus, SubmissionStatus.submitted);
     });
 

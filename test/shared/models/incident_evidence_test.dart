@@ -6,7 +6,7 @@ void main() {
   IncidentReport base() => IncidentReport.create(
         rangerId: 'R001',
         parkId: 'PARK-MIN',
-        category: IncidentCategory.poaching,
+        category: IncidentCategory.snare,
         description: 'Snare near river',
         observedAt: DateTime.utc(2026, 9, 23),
         latitude: 7.9,
@@ -20,7 +20,7 @@ void main() {
       final incident = IncidentReport.create(
         rangerId: 'R001',
         parkId: 'PARK-MIN',
-        category: IncidentCategory.poaching,
+        category: IncidentCategory.snare,
         description: 'Snare near river',
         observedAt: DateTime.utc(2026, 9, 23),
         latitude: 7.9,

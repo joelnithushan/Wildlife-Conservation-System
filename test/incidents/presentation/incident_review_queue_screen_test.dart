@@ -28,7 +28,7 @@ void main() {
     SyncState syncState = SyncState.synchronized,
     ReviewStatus reviewStatus = ReviewStatus.pendingReview,
     String rangerId = 'R001',
-    IncidentCategory category = IncidentCategory.poaching,
+    IncidentCategory category = IncidentCategory.snare,
   }) async {
     await IncidentLocalDataSource(
       c.read(appDatabaseProvider),
@@ -69,7 +69,7 @@ void main() {
     final c = managerContainer();
     addTearDown(c.dispose);
     await seed(c, 'i_q1');
-    await seed(c, 'i_q2', category: IncidentCategory.animalInjury);
+    await seed(c, 'i_q2', category: IncidentCategory.carcass);
 
     await pumpUc02Screen(tester, const IncidentReviewQueueScreen(),
         container: c, initialLocation: AppRoutes.incidentReviewQueue);
@@ -77,8 +77,8 @@ void main() {
 
     expect(find.text('Incident Review'), findsOneWidget);
     expect(find.text('Pending review'), findsWidgets); // chip filter + status
-    expect(find.text('poaching'), findsOneWidget);
-    expect(find.text('animalInjury'), findsOneWidget);
+    expect(find.text('snare'), findsOneWidget);
+    expect(find.text('carcass'), findsOneWidget);
     expect(find.textContaining('Ranger: R001'), findsWidgets);
   });
 
@@ -92,12 +92,12 @@ void main() {
         container: c, initialLocation: AppRoutes.incidentReviewQueue);
     await tester.pumpAndSettle();
 
-    expect(find.text('poaching'), findsOneWidget);
+    expect(find.text('snare'), findsOneWidget);
 
     await tester.tap(find.text('Verified'));
     await tester.pumpAndSettle();
 
-    expect(find.text('poaching'), findsNothing);
+    expect(find.text('snare'), findsNothing);
     expect(find.text('No verified reports yet.'), findsOneWidget);
   });
 
@@ -155,7 +155,7 @@ void main() {
         container: c, initialLocation: AppRoutes.incidentReviewQueue);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('poaching'));
+    await tester.tap(find.text('snare'));
     await tester.pumpAndSettle();
 
     expect(find.text('Review Incident'), findsOneWidget);

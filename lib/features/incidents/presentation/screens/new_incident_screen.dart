@@ -52,8 +52,8 @@ class NewIncidentScreen extends ConsumerWidget {
                 children: [
                   _ExampleChip(icon: Icons.gavel, label: 'Snare'),
                   _ExampleChip(icon: Icons.pets, label: 'Carcass'),
-                  _ExampleChip(icon: Icons.night_shelter, label: 'Illegal Campsite'),
-                  _ExampleChip(icon: Icons.directions_walk, label: 'Footprints'),
+                  _ExampleChip(icon: Icons.night_shelter, label: 'Illegal campsite'),
+                  _ExampleChip(icon: Icons.directions_walk, label: 'Suspicious footprints'),
                 ],
               ),
             ],

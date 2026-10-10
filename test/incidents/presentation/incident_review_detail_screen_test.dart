@@ -25,7 +25,7 @@ void main() {
         id: 'i_detail',
         rangerId: 'R001',
         parkId: 'PARK-MIN',
-        category: IncidentCategory.poaching,
+        category: IncidentCategory.snare,
         description: 'Wire snare near the river crossing',
         observedAt: DateTime.utc(2026, 9, 23, 7, 14),
         latitude: 8.03,
@@ -59,7 +59,7 @@ void main() {
 
     expect(find.text('Review Incident'), findsOneWidget);
     expect(find.textContaining('i_detail'), findsOneWidget);
-    expect(find.text('poaching'), findsOneWidget);
+    expect(find.text('snare'), findsOneWidget);
     expect(find.text('R001'), findsOneWidget);
     expect(find.text('GPS'), findsOneWidget);
     expect(find.text('Wire snare near the river crossing'), findsOneWidget);
@@ -149,7 +149,7 @@ void main() {
         id: 'i_noauth',
         rangerId: 'R002',
         parkId: 'PARK-MIN',
-        category: IncidentCategory.poaching,
+        category: IncidentCategory.snare,
         description: 'Wire snare near the river crossing',
         observedAt: DateTime.utc(2026, 9, 23, 7, 14),
         latitude: 8.03,

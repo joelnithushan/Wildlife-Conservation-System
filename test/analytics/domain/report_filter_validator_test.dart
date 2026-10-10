@@ -14,7 +14,7 @@ void main() {
       parkId: 'PARK-MIN',
       startDate: start,
       endDate: end,
-      categories: const [IncidentCategory.poaching, IncidentCategory.other],
+      categories: const [IncidentCategory.snare, IncidentCategory.other],
       authorizedParkIds: authorized,
     );
     expect(error, isNull);
@@ -58,14 +58,14 @@ void main() {
       parkId: 'PARK-MIN',
       startDate: start,
       endDate: start,
-      categories: const [IncidentCategory.poaching],
+      categories: const [IncidentCategory.snare],
       authorizedParkIds: authorized,
     );
     final spanning = validator.validate(
       parkId: 'PARK-MIN',
       startDate: start,
       endDate: end,
-      categories: const [IncidentCategory.poaching],
+      categories: const [IncidentCategory.snare],
       authorizedParkIds: authorized,
     );
     expect(sameDay, isNull);
@@ -86,7 +86,7 @@ void main() {
       parkId: 'PARK-MIN',
       startDate: start,
       endDate: end,
-      categories: const [IncidentCategory.illegalLogging],
+      categories: const [IncidentCategory.illegalCampsite],
       authorizedParkIds: authorized,
     );
     expect(none, ReportMessages.missingCategories);

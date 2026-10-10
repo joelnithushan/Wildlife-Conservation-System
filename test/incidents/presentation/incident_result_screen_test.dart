@@ -19,7 +19,7 @@ void main() {
         id: id,
         rangerId: 'R001',
         parkId: 'PARK-MIN',
-        category: IncidentCategory.poaching,
+        category: IncidentCategory.snare,
         description: 'Wire snare near the river crossing',
         observedAt: DateTime.utc(2026, 9, 23, 7, 14),
         latitude: 8.03,

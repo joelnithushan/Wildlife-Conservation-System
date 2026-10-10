@@ -15,7 +15,7 @@ void main() {
         id: Value(id),
         rangerId: const Value('R001'),
         parkId: const Value('PARK-MIN'),
-        category: Value(IncidentCategory.poaching.wire),
+        category: Value(IncidentCategory.snare.wire),
         description: const Value('Wire snare near the trail'),
         observedAt: Value(observedAt),
         latitude: const Value(8.412),
@@ -35,7 +35,7 @@ void main() {
 
     expect(row.rangerId, 'R001');
     expect(row.parkId, 'PARK-MIN');
-    expect(row.category, IncidentCategory.poaching.wire);
+    expect(row.category, IncidentCategory.snare.wire);
     // Domain event time is preserved (same instant; Drift returns it as local).
     expect(row.observedAt.isAtSameMomentAs(observedAt), isTrue);
     expect(row.submissionStatus, SubmissionStatus.draft.wire);

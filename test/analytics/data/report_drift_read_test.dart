@@ -22,7 +22,7 @@ void main() {
               id: Value(id),
               rangerId: const Value('R001'),
               parkId: const Value('PARK-MIN'),
-              category: Value(IncidentCategory.poaching.wire),
+              category: Value(IncidentCategory.snare.wire),
               description: const Value('Snare on the trail'),
               observedAt: Value(observed),
               latitude: const Value(8.1),

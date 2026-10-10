@@ -101,7 +101,7 @@ void main() {
     final stored = await container
         .read(incidentRepositoryProvider)
         .getIncident(submission.reportId!);
-    expect(stored!.category, IncidentCategory.poaching);
+    expect(stored!.category, IncidentCategory.snare);
     expect(stored.rangerId, 'R001');
     expect(stored.patrolId, 'patrol-live');
     expect(stored.latitude, 8.0312);

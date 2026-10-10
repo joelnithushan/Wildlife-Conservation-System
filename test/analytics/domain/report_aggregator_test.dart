@@ -26,8 +26,8 @@ void main() {
     final report = ReportAggregator.aggregate(
       criteria: criteria(
         categories: const [
-          IncidentCategory.poaching,
-          IncidentCategory.illegalLogging,
+          IncidentCategory.snare,
+          IncidentCategory.illegalCampsite,
           IncidentCategory.other,
         ],
       ),
@@ -36,12 +36,12 @@ void main() {
       snapshotId: 'snap-1',
       source: ReportSourceData(
         incidents: [
-          testIncident(id: 'a', category: IncidentCategory.poaching),
-          testIncident(id: 'b', category: IncidentCategory.poaching),
-          testIncident(id: 'c', category: IncidentCategory.illegalLogging),
+          testIncident(id: 'a', category: IncidentCategory.snare),
+          testIncident(id: 'b', category: IncidentCategory.snare),
+          testIncident(id: 'c', category: IncidentCategory.illegalCampsite),
           testIncident(
             id: 'pending',
-            category: IncidentCategory.poaching,
+            category: IncidentCategory.snare,
             syncState: SyncState.pending,
           ),
           testIncident(
@@ -54,28 +54,28 @@ void main() {
     );
 
     expect(report.totalIncidents, 3);
-    expect(report.incidentCounts[IncidentCategory.poaching], 2);
-    expect(report.incidentCounts[IncidentCategory.illegalLogging], 1);
+    expect(report.incidentCounts[IncidentCategory.snare], 2);
+    expect(report.incidentCounts[IncidentCategory.illegalCampsite], 1);
     expect(report.incidentCounts[IncidentCategory.other], 0);
     expect(report.excludedPendingCount, 2);
   });
 
   test('6/10. unselected categories are omitted from the totals', () {
     final report = ReportAggregator.aggregate(
-      criteria: criteria(categories: const [IncidentCategory.poaching]),
+      criteria: criteria(categories: const [IncidentCategory.snare]),
       parkName: 'Minneriya',
       generatedAt: generatedAt,
       snapshotId: 'snap-cat',
       source: ReportSourceData(
         incidents: [
-          testIncident(id: 'a', category: IncidentCategory.poaching),
-          testIncident(id: 'b', category: IncidentCategory.animalInjury),
+          testIncident(id: 'a', category: IncidentCategory.snare),
+          testIncident(id: 'b', category: IncidentCategory.carcass),
         ],
       ),
     );
 
     expect(report.totalIncidents, 1);
-    expect(report.incidentCounts.containsKey(IncidentCategory.animalInjury),
+    expect(report.incidentCounts.containsKey(IncidentCategory.carcass),
         isFalse);
   });
 
@@ -156,7 +156,7 @@ void main() {
 
   test('synchronized incidents with a bad location are still counted', () {
     final report = ReportAggregator.aggregate(
-      criteria: criteria(categories: const [IncidentCategory.poaching]),
+      criteria: criteria(categories: const [IncidentCategory.snare]),
       parkName: 'Minneriya',
       generatedAt: generatedAt,
       snapshotId: 'snap-badcoord',
@@ -172,7 +172,7 @@ void main() {
     // All three are synchronized in-park in-window poaching incidents; a
     // missing coordinate must not silently drop them from the count.
     expect(report.totalIncidents, 3);
-    expect(report.incidentCounts[IncidentCategory.poaching], 3);
+    expect(report.incidentCounts[IncidentCategory.snare], 3);
     expect(report.excludedPendingCount, 0);
   });
 
@@ -183,7 +183,7 @@ void main() {
     final endOfWindow = DateTime(2026, 3, 31, 23, 59, 59);
     final report = ReportAggregator.aggregate(
       criteria: criteria(
-        categories: const [IncidentCategory.poaching],
+        categories: const [IncidentCategory.snare],
         start: DateTime(2026, 3, 1),
         end: DateTime(2026, 3, 31),
       ),
@@ -313,7 +313,7 @@ void main() {
 
   test('18. a generated report stays immutable when inputs and filters change',
       () {
-    final categories = [IncidentCategory.poaching];
+    final categories = [IncidentCategory.snare];
     final selected = criteria(categories: categories);
     final incidents = [testIncident(id: 'a')];
     final report = ReportAggregator.aggregate(
@@ -342,7 +342,7 @@ void main() {
 
     expect(report.incidentCounts, before);
     expect(report.totalIncidents, 1);
-    expect(report.criteria?.categories, [IncidentCategory.poaching]);
+    expect(report.criteria?.categories, [IncidentCategory.snare]);
     expect(next.snapshotId, isNot(report.snapshotId));
     expect(next.totalIncidents, greaterThan(report.totalIncidents));
   });

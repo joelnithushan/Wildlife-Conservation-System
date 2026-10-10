@@ -39,7 +39,7 @@ void main() {
 
     expect(find.text(ReportMessages.generating), findsNothing);
     expect(find.text('Total incidents'), findsOneWidget);
-    expect(find.text('Poaching: 1'), findsOneWidget);
+    expect(find.text('Snare: 1'), findsOneWidget);
     expect(find.text('80.0%'), findsOneWidget);
     expect(find.text('Conflict alerts'), findsOneWidget);
     expect(find.text(ReportMessages.pendingExcluded(1)), findsOneWidget);

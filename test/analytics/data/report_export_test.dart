@@ -24,7 +24,7 @@ void main() {
     final text = lines.join('\n');
     expect(text, contains('snap-export'));
     expect(text, contains('Total incidents: 18'));
-    expect(text, contains('Poaching: 18'));
+    expect(text, contains('Snare: 18'));
     expect(text, contains('Excluded pending field records: 3'));
     expect(text, contains(report.dataCutoff.toUtc().toIso8601String()));
     expect(text, contains('Minneriya National Park'));
@@ -33,7 +33,7 @@ void main() {
     final csv = buildReportCsv(report);
     expect(csv, contains('snap-export'));
     expect(csv, contains('incidents,total,18'));
-    expect(csv, contains('incidents,poaching,18'));
+    expect(csv, contains('incidents,snare,18'));
     expect(csv, contains('metadata,excludedPendingCount,3'));
     expect(
         csv,

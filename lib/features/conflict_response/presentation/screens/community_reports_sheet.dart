@@ -32,9 +32,11 @@ class CommunityReportsSheet extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Community Reports',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                  const Expanded(
+                    child: Text('Community Reports',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w700)),
+                  ),
                   TextButton.icon(
                     onPressed: () {
                       Navigator.pop(context);

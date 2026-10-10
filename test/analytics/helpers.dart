@@ -25,7 +25,7 @@ ReportCriteria testCriteria({
 
 IncidentReport testIncident({
   required String id,
-  IncidentCategory category = IncidentCategory.poaching,
+  IncidentCategory category = IncidentCategory.snare,
   String parkId = 'PARK-MIN',
   DateTime? observedAt,
   SyncState syncState = SyncState.synchronized,
@@ -123,7 +123,7 @@ ConservationReport testReport({
     parkName: 'Minneriya National Park',
     incidentCounts: {
       for (final category in IncidentCategory.values)
-        category: category == IncidentCategory.poaching ? totalPoaching : 0,
+        category: category == IncidentCategory.snare ? totalPoaching : 0,
     },
     patrolCoverage: coverage,
     completedPatrolCount: completedPatrols,

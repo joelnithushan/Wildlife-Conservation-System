@@ -31,7 +31,7 @@ void main() {
               id: const Value('inc-1'),
               rangerId: const Value('R001'),
               parkId: const Value('PARK-MIN'),
-              category: Value(IncidentCategory.poaching.wire),
+              category: Value(IncidentCategory.snare.wire),
               description: const Value('Suspicious tracks near boundary'),
               observedAt: Value(DateTime.utc(2026, 3, 10, 9)),
               latitude: const Value(8.05),

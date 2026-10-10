@@ -20,8 +20,8 @@ void main() {
     expect(find.text('Report Field Incident'), findsOneWidget);
     expect(find.text('Snare'), findsOneWidget);
     expect(find.text('Carcass'), findsOneWidget);
-    expect(find.text('Illegal Campsite'), findsOneWidget);
-    expect(find.text('Footprints'), findsOneWidget);
+    expect(find.text('Illegal campsite'), findsOneWidget);
+    expect(find.text('Suspicious footprints'), findsOneWidget);
     expect(find.text('Start Report'), findsOneWidget);
   });
 

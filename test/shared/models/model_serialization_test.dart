@@ -39,7 +39,7 @@ void main() {
         id: 'incident_1',
         rangerId: 'R001',
         parkId: 'PARK-MIN',
-        category: IncidentCategory.poaching,
+        category: IncidentCategory.snare,
         description: 'Snare found near river',
         observedAt: now,
         latitude: 7.9,

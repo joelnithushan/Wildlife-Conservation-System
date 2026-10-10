@@ -108,7 +108,7 @@ void main() {
     );
 
     final first = await repo.generateReport(
-      testCriteria(categories: const [IncidentCategory.poaching]),
+      testCriteria(categories: const [IncidentCategory.snare]),
     );
     final frozen = first.toMap();
     final second = await repo.generateReport(testCriteria());

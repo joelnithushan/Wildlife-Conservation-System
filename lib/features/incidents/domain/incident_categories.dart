@@ -9,10 +9,10 @@ import '../../../core/enums/app_enums.dart';
 /// review screens and UC04 analytics all keep using the shared enum — no shared
 /// code changes, no raw strings scattered around.
 enum IncidentReportCategory {
-  snare(IncidentCategory.poaching),
-  carcass(IncidentCategory.animalInjury),
-  illegalCampsite(IncidentCategory.illegalLogging),
-  suspiciousFootprints(IncidentCategory.humanWildlifeConflict),
+  snare(IncidentCategory.snare),
+  carcass(IncidentCategory.carcass),
+  illegalCampsite(IncidentCategory.illegalCampsite),
+  suspiciousFootprints(IncidentCategory.suspiciousFootprints),
   other(IncidentCategory.other);
 
   const IncidentReportCategory(this.shared);
@@ -29,8 +29,8 @@ enum IncidentReportCategory {
   String get label => switch (this) {
         IncidentReportCategory.snare => 'Snare',
         IncidentReportCategory.carcass => 'Carcass',
-        IncidentReportCategory.illegalCampsite => 'Illegal Campsite',
-        IncidentReportCategory.suspiciousFootprints => 'Footprints',
+        IncidentReportCategory.illegalCampsite => 'Illegal campsite',
+        IncidentReportCategory.suspiciousFootprints => 'Suspicious footprints',
         IncidentReportCategory.other => 'Other',
       };
 

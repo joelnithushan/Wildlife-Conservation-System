@@ -11,8 +11,8 @@ void main() {
         containsAll([
           'Snare',
           'Carcass',
-          'Illegal Campsite',
-          'Footprints',
+          'Illegal campsite',
+          'Suspicious footprints',
           'Other',
         ]),
       );
@@ -60,10 +60,10 @@ void main() {
       expect(
         IncidentCategory.values.map((c) => c.wire),
         containsAll([
-          'poaching',
-          'animalInjury',
-          'humanWildlifeConflict',
-          'illegalLogging',
+          'snare',
+          'carcass',
+          'illegalCampsite',
+          'suspiciousFootprints',
           'other',
         ]),
       );

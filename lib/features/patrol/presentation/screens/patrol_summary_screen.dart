@@ -129,17 +129,19 @@ class _CoverageRing extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('${percent.toStringAsFixed(0)}% covered',
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(fontWeight: FontWeight.bold)),
-                const Text('of the planned route',
-                    style: TextStyle(color: Colors.grey)),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('${percent.toStringAsFixed(0)}% covered',
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(fontWeight: FontWeight.bold)),
+                  const Text('of the planned route',
+                      style: TextStyle(color: Colors.grey)),
+                ],
+              ),
             ),
           ],
         ),
@@ -155,11 +157,27 @@ class _SummaryTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A Row with a Flexible value instead of ListTile.trailing: ListTile throws
+    // "trailing widget consumes the entire tile width" when the value is long on
+    // narrow screens. This lets long values (e.g. a full date) wrap/ellipsize.
     return Card(
-      child: ListTile(
-        title: Text(label),
-        trailing: Text(value,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: Text(label)),
+            const SizedBox(width: 12),
+            Flexible(
+              child: Text(
+                value,
+                textAlign: TextAlign.right,
+                style:
+                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

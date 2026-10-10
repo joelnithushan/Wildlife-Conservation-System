@@ -54,8 +54,8 @@ void main() {
 
     expect(find.text('Conservation Reports'), findsOneWidget);
     expect(find.text('Minneriya National Park'), findsOneWidget);
-    expect(find.text('Poaching'), findsWidgets);
-    expect(find.text('Illegal logging'), findsOneWidget);
+    expect(find.text('Snare'), findsWidgets);
+    expect(find.text('Illegal campsite'), findsOneWidget);
     expect(find.text('Generate Report'), findsOneWidget);
   });
 

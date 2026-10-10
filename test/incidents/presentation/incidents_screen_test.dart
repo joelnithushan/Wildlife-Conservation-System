@@ -13,7 +13,7 @@ void main() {
   IncidentReport report({
     required String id,
     required SyncState syncState,
-    IncidentCategory category = IncidentCategory.poaching,
+    IncidentCategory category = IncidentCategory.snare,
   }) =>
       IncidentReport(
         id: id,
@@ -46,7 +46,7 @@ void main() {
       report(
         id: 'i_pending',
         syncState: SyncState.pending,
-        category: IncidentCategory.animalInjury,
+        category: IncidentCategory.carcass,
       ),
     );
 

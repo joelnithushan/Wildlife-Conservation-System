@@ -9,8 +9,8 @@ abstract final class FieldIncidentDraft {
   static const List<String> incidentTypeLabels = [
     'Snare',
     'Carcass',
-    'Illegal Campsite',
-    'Footprints',
+    'Illegal campsite',
+    'Suspicious footprints',
     'Other',
   ];
 

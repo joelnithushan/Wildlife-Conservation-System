@@ -10,7 +10,7 @@ void main() {
         parkId: 'PARK-MIN',
         startDate: DateTime.utc(2026, 1, 1),
         endDate: DateTime.utc(2026, 3, 1),
-        categories: const [IncidentCategory.poaching],
+        categories: const [IncidentCategory.snare],
       );
       expect(criteria.isValid, isTrue);
       expect(ReportCriteria.fromMap(criteria.toMap()), criteria);
@@ -30,8 +30,8 @@ void main() {
     test('totals and round-trip serialization', () {
       final report = ConservationReport(
         incidentCounts: const {
-          IncidentCategory.poaching: 3,
-          IncidentCategory.illegalLogging: 2,
+          IncidentCategory.snare: 3,
+          IncidentCategory.illegalCampsite: 2,
         },
         patrolCoverage: 76.5,
         conflictTrends: [
