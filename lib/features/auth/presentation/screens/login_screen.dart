@@ -397,34 +397,6 @@ class _LoginPanel extends StatelessWidget {
                     onPressed: submitting ? null : onSubmit,
                     loading: submitting,
                   ),
-                  const SizedBox(height: 10),
-
-                  // Community Member entry
-                  Builder(builder: (ctx) {
-                    return OutlinedButton.icon(
-                      onPressed: submitting
-                          ? null
-                          : () => ctx.push(AppRoutes.reportConflict),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: _C.primaryDark,
-                        side: const BorderSide(
-                            color: _C.primaryDark, width: 1.2),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
-                        padding: const EdgeInsets.symmetric(vertical: 11),
-                      ),
-                      icon: const Icon(Icons.report_problem_outlined,
-                          size: 18),
-                      label: const Text(
-                        'Community Member: Report Conflict',
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    );
-                  }),
                 ],
               ),
             ),
